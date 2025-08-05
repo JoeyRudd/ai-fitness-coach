@@ -4,13 +4,15 @@
             <h1 class="text-4xl font-bold text-center text-gray-800 mb-8">
                 AI Fitness Coach
             </h1>
+
+            <!-- Backend Test Component -->
+            <BackendTest />
         </div>
     </div>
 </template>
 
-<script setup>
-// Simple App.vue with just a heading
-// Additional components and functionality can be added here later
+<script setup lang="ts">
+import BackendTest from "./components/BackendTest.vue";
 </script>
 
 <style>
