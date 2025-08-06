@@ -1,3 +1,7 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Base reset and typography */
 :root {
     font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
@@ -18,8 +22,10 @@ body {
     margin: 0;
     min-width: 320px;
     min-height: 100vh;
+    background-color: #f3f4f6; /* Tailwind gray-100 */
 }
 
 #app {
     min-height: 100vh;
+    padding: 1rem;
 }
