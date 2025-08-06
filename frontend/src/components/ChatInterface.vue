@@ -2,7 +2,10 @@
     <div class="bg-white rounded-lg shadow-lg p-6">
         <!-- Input Section -->
         <div class="mb-6">
-            <label for="user-input" class="block text-sm font-medium text-gray-700 mb-2">
+            <label
+                for="user-input"
+                class="block text-sm font-medium text-gray-700 mb-2"
+            >
                 {{ inputLabel }}
             </label>
             <textarea
@@ -30,7 +33,11 @@
         <div class="mb-6">
             <button
                 @click="sendMessage"
-                :disabled="loading || !userInput.trim() || (maxLength && userInput.length > maxLength)"
+                :disabled="
+                    loading ||
+                    !userInput.trim() ||
+                    (maxLength && userInput.length > maxLength)
+                "
                 class="w-full sm:w-auto px-6 py-3 bg-blue-500 text-white font-medium rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
             >
                 {{ loading ? loadingText : sendButtonText }}
@@ -44,8 +51,13 @@
             </h2>
 
             <!-- Loading indicator -->
-            <div v-if="loading" class="flex items-center space-x-2 text-gray-600">
-                <div class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"></div>
+            <div
+                v-if="loading"
+                class="flex items-center space-x-2 text-gray-600"
+            >
+                <div
+                    class="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500"
+                ></div>
                 <span>{{ loadingMessage }}</span>
             </div>
 
@@ -74,7 +86,10 @@
         </div>
 
         <!-- Clear Response Button -->
-        <div v-if="aiResponse && !loading && showClearButton" class="mt-4 text-center">
+        <div
+            v-if="aiResponse && !loading && showClearButton"
+            class="mt-4 text-center"
+        >
             <button
                 @click="clearResponse"
                 class="text-sm text-gray-600 hover:text-gray-800 underline"
@@ -108,7 +123,8 @@ interface Props {
 const props = withDefaults(defineProps<Props>(), {
     apiEndpoint: "http://localhost:8000/chat",
     inputLabel: "Ask your fitness question:",
-    placeholder: "e.g., Create a workout plan for beginners, or suggest a healthy meal...",
+    placeholder:
+        "e.g., Create a workout plan for beginners, or suggest a healthy meal...",
     sendButtonText: "Send",
     loadingText: "Thinking...",
     loadingMessage: "Getting your personalized fitness advice...",
@@ -116,7 +132,7 @@ const props = withDefaults(defineProps<Props>(), {
     textareaRows: 4,
     maxLength: 1000,
     showClearButton: true,
-    enableMockResponse: true
+    enableMockResponse: true,
 });
 
 // Emits (for parent component communication)
@@ -143,35 +159,59 @@ const sendMessage = async (): Promise<void> => {
     aiResponse.value = "";
 
     // Emit that a message was sent
-    emit('messageSent', message);
+    emit("messageSent", message);
 
     try {
-        const response = await axios.post(props.apiEndpoint, {
-            message: message
-        });
+        const response = await axios.post(
+            props.apiEndpoint,
+            {
+                message: message,
+            },
+            {
+                headers: {
+                    "Content-Type": "application/json",
+                },
+            },
+        );
 
-        const responseText = response.data.response || response.data.message || "No response received";
+        // The backend returns { "response": "You said: ..." }
+        const responseText = response.data.response || "No response received";
         aiResponse.value = responseText;
 
         // Emit that a response was received
-        emit('responseReceived', responseText);
+        emit("responseReceived", responseText);
 
         // Clear the input after successful send
         userInput.value = "";
-
     } catch (err: any) {
         console.error("Error sending message:", err);
-        const errorMessage = `Failed to get AI response: ${err.response?.data?.detail || err.message}`;
-        error.value = errorMessage;
 
-        // Emit error
-        emit('error', errorMessage);
+        // More detailed error handling for debugging
+        let errorMessage = "Failed to get AI response";
+
+        if (err.response) {
+            // Server responded with error status
+            errorMessage = `Backend error (${err.response.status}): ${err.response.data?.detail || err.response.statusText}`;
+        } else if (err.request) {
+            // Request was made but no response received
+            errorMessage =
+                "Cannot connect to backend. Make sure the backend server is running on http://localhost:8000";
+        } else {
+            // Something else happened
+            errorMessage = `Request error: ${err.message}`;
+        }
+
+        error.value = errorMessage;
+        emit("error", errorMessage);
 
         // For demo purposes, show a mock response if backend isn't ready and mock is enabled
-        if (props.enableMockResponse && (err.response?.status === 404 || err.code === 'ECONNREFUSED')) {
-            const mockResponse = `Mock AI Response for: "${message}"\n\nThis is a placeholder response. Once your backend is set up with AI integration, you'll get real fitness advice here!\n\nYour question was: ${message}`;
+        if (
+            props.enableMockResponse &&
+            (err.code === "ECONNREFUSED" || err.code === "ERR_NETWORK")
+        ) {
+            const mockResponse = `Mock AI Response for: "${message}"\n\nThis is a placeholder response. The backend appears to be offline.\n\nTo connect to the real backend:\n1. Make sure the backend server is running\n2. Start it with: uvicorn main:app --reload\n3. Backend should be available at http://localhost:8000\n\nYour question was: ${message}`;
             aiResponse.value = mockResponse;
-            emit('responseReceived', mockResponse);
+            emit("responseReceived", mockResponse);
             userInput.value = "";
             error.value = "";
         }
@@ -194,6 +234,6 @@ const clearResponse = (): void => {
 defineExpose({
     clearError,
     clearResponse,
-    sendMessage
+    sendMessage,
 });
 </script>
