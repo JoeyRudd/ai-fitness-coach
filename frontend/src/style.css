@@ -1,3 +1,8 @@
+/* Import Tailwind CSS */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
 /* Base reset and typography */
 :root {
     font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
