@@ -4,7 +4,7 @@
         <button
             @click="testBackend"
             :disabled="loading"
-            class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed"
+            class="px-6 py-3 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
         >
             {{ loading ? "Testing..." : "Test Backend Connection" }}
         </button>
@@ -13,19 +13,19 @@
     <!-- Display the message from backend -->
     <div
         v-if="message"
-        class="max-w-2xl mx-auto p-4 bg-white rounded-lg shadow mb-4"
+        class="max-w-2xl mx-auto p-4 rounded-lg shadow mb-4 bg-white/80 border border-gray-200 text-gray-800 dark:bg-neutral-900/80 dark:border-neutral-800 dark:text-gray-100"
     >
         <h2 class="text-lg font-semibold mb-2">Backend Response:</h2>
-        <p class="text-gray-700">{{ message }}</p>
+        <p class="text-gray-700 dark:text-gray-300">{{ message }}</p>
     </div>
 
     <!-- Display error if any -->
     <div
         v-if="error"
-        class="max-w-2xl mx-auto p-4 bg-red-50 border border-red-200 rounded-lg mb-4"
+        class="max-w-2xl mx-auto p-4 rounded-lg mb-4 bg-red-50 border border-red-200 text-red-700 dark:bg-red-950/60 dark:border-red-900 dark:text-red-300"
     >
-        <h2 class="text-lg font-semibold text-red-700 mb-2">Error:</h2>
-        <p class="text-red-600">{{ error }}</p>
+        <h2 class="text-lg font-semibold mb-2">Error:</h2>
+        <p>{{ error }}</p>
     </div>
 </template>
 

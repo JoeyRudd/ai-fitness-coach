@@ -1,10 +1,10 @@
 <template>
-    <div class="bg-white rounded-xl shadow-xl p-8 border border-gray-100">
+    <div class="rounded-xl p-8 bg-white/80 backdrop-blur-sm border border-gray-200 shadow-xl dark:bg-neutral-900/80 dark:border-neutral-800 dark:shadow-black/30">
         <!-- Input Section -->
         <div class="mb-8">
             <label
                 for="user-input"
-                class="block text-sm font-semibold text-gray-700 mb-3"
+                class="block text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3"
             >
                 {{ inputLabel }}
             </label>
@@ -15,20 +15,20 @@
                     :placeholder="placeholder"
                     :rows="textareaRows"
                     :maxlength="maxLength"
-                    class="w-full px-4 py-3 border-2 border-gray-200 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none transition-all duration-200 placeholder-gray-400"
+                    class="w-full px-4 py-3 border-2 border-gray-200 dark:border-neutral-800 rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 resize-none transition-all duration-200 placeholder-gray-400 dark:placeholder-gray-500 bg-white/70 dark:bg-neutral-900/70 text-gray-900 dark:text-gray-100"
                     :disabled="loading"
                     @keydown.ctrl.enter="sendMessage"
                     @keydown.meta.enter="sendMessage"
                 ></textarea>
-                <div class="absolute bottom-2 right-2 text-xs text-gray-400">
+                <div class="absolute bottom-2 right-2 text-xs text-gray-400 dark:text-gray-500">
                     <span v-if="maxLength">{{ userInput.length }}/{{ maxLength }}</span>
                 </div>
             </div>
             <div class="flex justify-between items-center mt-2">
-                <p class="text-xs text-gray-500 flex items-center">
-                    <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">⌘</kbd>
+                <p class="text-xs text-gray-500 dark:text-gray-400 flex items-center">
+                    <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:text-gray-200 dark:bg-neutral-800 dark:border-neutral-700">⌘</kbd>
                     <span class="mx-1">+</span>
-                    <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg">Enter</kbd>
+                    <kbd class="px-2 py-1 text-xs font-semibold text-gray-800 bg-gray-100 border border-gray-200 rounded-lg dark:text-gray-200 dark:bg-neutral-800 dark:border-neutral-700">Enter</kbd>
                     <span class="ml-2">to send</span>
                 </p>
             </div>
@@ -43,7 +43,7 @@
                     !userInput.trim() ||
                     (!!maxLength && userInput.length > maxLength)
                 "
-                class="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none"
+                class="w-full sm:w-auto px-8 py-3 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-semibold rounded-lg hover:from-blue-600 hover:to-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 disabled:transform-none"
             >
                 <span class="flex items-center justify-center">
                     <span v-if="!loading">{{ sendButtonText }}</span>
@@ -59,8 +59,8 @@
         </div>
 
         <!-- AI Response Section -->
-        <div v-if="aiResponse || loading" class="border-t border-gray-200 pt-8">
-            <h2 class="text-xl font-bold text-gray-800 mb-4 flex items-center">
+        <div v-if="aiResponse || loading" class="border-t border-gray-200 dark:border-neutral-800 pt-8">
+            <h2 class="text-xl font-bold text-gray-800 dark:text-gray-100 mb-4 flex items-center">
                 <svg class="w-6 h-6 mr-2 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"></path>
                 </svg>
@@ -70,7 +70,7 @@
             <!-- Loading indicator -->
             <div
                 v-if="loading"
-                class="flex items-center space-x-3 text-gray-600 bg-gray-50 rounded-xl p-6"
+                class="flex items-center space-x-3 text-gray-600 dark:text-gray-300 bg-gray-50 dark:bg-neutral-900 rounded-xl p-6 border border-gray-100 dark:border-neutral-800"
             >
                 <div class="flex space-x-1">
                     <div class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></div>
@@ -83,7 +83,7 @@
             <!-- AI Response -->
             <div
                 v-else-if="aiResponse"
-                class="bg-gradient-to-br from-gray-50 to-blue-50 rounded-xl p-6 whitespace-pre-wrap text-gray-800 leading-relaxed border border-gray-100 shadow-inner"
+                class="rounded-xl p-6 whitespace-pre-wrap leading-relaxed border border-gray-100 dark:border-neutral-800 shadow-inner bg-gradient-to-br from-gray-50 to-blue-50 dark:from-neutral-900 dark:to-neutral-900/60 text-gray-800 dark:text-gray-100"
             >
                 {{ aiResponse }}
             </div>
@@ -92,18 +92,18 @@
         <!-- Error Display -->
         <div
             v-if="error"
-            class="mt-6 p-5 bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-400 rounded-lg shadow-sm"
+            class="mt-6 p-5 bg-gradient-to-r from-red-50 to-red-100 border-l-4 border-red-400 rounded-lg shadow-sm dark:from-red-950/60 dark:to-red-900/40 dark:border-red-700"
         >
             <div class="flex items-start">
-                <svg class="w-5 h-5 text-red-400 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg class="w-5 h-5 text-red-500 mt-0.5 mr-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                 </svg>
                 <div class="flex-1">
-                    <h3 class="text-sm font-semibold text-red-800 mb-1">Error:</h3>
-                    <p class="text-red-700 text-sm leading-relaxed">{{ error }}</p>
+                    <h3 class="text-sm font-semibold text-red-800 dark:text-red-300 mb-1">Error:</h3>
+                    <p class="text-red-700 dark:text-red-300/90 text-sm leading-relaxed">{{ error }}</p>
                     <button
                         @click="clearError"
-                        class="mt-3 text-xs text-red-800 hover:text-red-900 underline font-medium"
+                        class="mt-3 text-xs text-red-800 dark:text-red-300 hover:text-red-900 dark:hover:text-red-200 underline font-medium"
                     >
                         Dismiss
                     </button>
@@ -118,7 +118,7 @@
         >
             <button
                 @click="clearResponse"
-                class="text-sm text-gray-500 hover:text-gray-700 underline font-medium transition-colors duration-200"
+                class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 underline font-medium transition-colors duration-200"
             >
                 Clear Response
             </button>
