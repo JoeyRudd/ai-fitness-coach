@@ -2,118 +2,351 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import google.generativeai as genai
-import logging
-import os
+import os, logging, re
+from typing import Optional, Dict, Any, Tuple, List, Literal
 from dotenv import load_dotenv
 
-# Load environment variables
+# ====================== Config & Setup ======================
 load_dotenv()
-
-# Setup logging so we can see what's happening
 logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("fitness_coach")
 
-app = FastAPI()
+GEMINI_MODEL_NAME = "gemini-1.5-flash"
+MODEL = None  # lazily initialized
 
-# Gemini AI model
-model = None
+APP_PERSONA = (
+    "You are a friendly, concise beginner fitness coach. "
+    "Target user: mid‑40s true beginner. Use very simple words and short sentences (3-6). "
+    "No bullet lists. Positive, safe, plain language. Avoid medical claims."
+)
 
-# Define the AI coach personality
-AI_COACH_PERSONA = """You are a friendly and encouraging AI fitness coach. Your target user is a 45-year-old beginner who needs simple, clear, and safe advice.
+# ====================== History Chat Models =================
+class HistoryTurn(BaseModel):
+    role: Literal['user','assistant','system']
+    content: str
 
-Guidelines:
-- Use positive, encouraging language
-- Explain concepts in plain English (e.g., say "burning more calories than you eat" instead of "caloric deficit")
-- Keep responses helpful but detailed enough to be actionable
-- Provide 2-3 specific tips or recommendations when possible"""
+class HistoryChatRequest(BaseModel):
+    history: List[HistoryTurn]
 
-def initialize_ai():
-    """Initialize Gemini AI model"""
-    global model
-    
+class HistoryChatResponse(BaseModel):
+    response: str
+    profile: Dict[str, Optional[float]]
+    tdee: Optional[Dict[str, Any]]
+    missing: List[str]
+    asked_this_intent: List[str]
+    intent: str
+
+# ====================== Patterns & Constants ================
+RE_GENDER = re.compile(r"\b(male|female|man|woman|boy|girl|m|f)\b", re.I)
+RE_AGE = re.compile(r"\b(\d{2})\s*(?:yo|y/o|years?|yrs?)?\b", re.I)
+RE_WEIGHT = re.compile(r"\b(\d{2,3})\s*(kg|kilograms|lbs|lb|pounds?)\b", re.I)
+RE_HEIGHT_FT_IN = re.compile(r"(\d)[’']\s*(\d{1,2})")
+RE_HEIGHT_FT_IN_WORDS = re.compile(r"(\d)\s*(?:ft|foot|feet)\s*(\d{1,2})\s*(?:in|inch|inches)?", re.I)
+RE_HEIGHT_CM = re.compile(r"\b(\d{2,3})\s*cm\b", re.I)
+RE_HEIGHT_IN = re.compile(r"\b(\d{2})\s*(?:in|inch|inches)\b", re.I)
+
+ACTIVITY_FACTORS: Dict[str,float] = {
+    'sedentary': 1.2,
+    'light': 1.375,
+    'moderate': 1.55,
+    'very': 1.725,
+    'extra': 1.9
+}
+
+TDEE_KEYWORDS = ["tdee", "maintenance", "calorie", "calories", "bmr", "burn each day", "daily burn"]
+START_TDEE_TRIGGERS = re.compile(r"(what\s+should\s+i\s+start|where\s+do\s+i\s+start|how\s+do\s+i\s+start)", re.I)
+
+RECALL_PATTERNS = {
+    'height_cm': re.compile(r"(my\s+height|how\s+tall\s+am\s+i)", re.I),
+    'weight_kg': re.compile(r"(my\s+weight|how\s+much\s+do\s+i\s+weigh)", re.I),
+    'age': re.compile(r"(my\s+age|how\s+old\s+am\s+i)", re.I),
+    'sex': re.compile(r"(my\s+(sex|gender))", re.I),
+    'activity_factor': re.compile(r"(my\s+activity|activity\s+level)", re.I)
+}
+
+ASK_PATTERNS = {
+    'sex': re.compile(r"sex", re.I),
+    'age': re.compile(r"age", re.I),
+    'weight_kg': re.compile(r"weight", re.I),
+    'height_cm': re.compile(r"height", re.I),
+    'activity_factor': re.compile(r"activity", re.I)
+}
+FIELD_ORDER = ['sex','age','weight_kg','height_cm','activity_factor']
+FIELD_HUMAN = {
+    'sex': 'sex (male or female)',
+    'age': 'age',
+    'weight_kg': 'weight',
+    'height_cm': 'height',
+    'activity_factor': 'activity level (sedentary, light, moderate, very, extra)'
+}
+
+# ====================== Model Init ==========================
+
+def init_model() -> bool:
+    global MODEL
+    if MODEL is not None:
+        return True
     api_key = os.getenv("GEMINI_API_KEY")
     if not api_key:
-        logger.error("❌ GEMINI_API_KEY not found in environment variables!")
-        logger.info("Please add your Gemini API key to a .env file:")
-        logger.info("GEMINI_API_KEY=your_api_key_here")
+        logger.error("GEMINI_API_KEY missing")
         return False
-    
     try:
-        logger.info("🔧 Configuring Gemini AI...")
         genai.configure(api_key=api_key)
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        logger.info("✅ Gemini AI configured successfully!")
+        MODEL = genai.GenerativeModel(GEMINI_MODEL_NAME)
+        logger.info("Gemini model initialized")
         return True
-        
-    except Exception as e:
-        logger.error(f"❌ Failed to initialize Gemini: {e}")
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Gemini init failed: {e}")
         return False
 
-def generate_ai_response(user_message: str) -> str:
-    """Generate a response using Gemini AI"""
-    if model is None:
-        logger.warning("Gemini model not initialized - trying to initialize...")
-        if not initialize_ai():
-            return "❌ AI model failed to load. Please check your GEMINI_API_KEY and restart the server."
-    
-    logger.info(f"🤖 Generating Gemini response for: {user_message}")
-    
-    # Create prompt with personality
-    prompt = f"""{AI_COACH_PERSONA}
+# ====================== Profile & Parsing ===================
 
-User question: {user_message}
+def parse_profile_facts(text: str) -> Dict[str, Optional[float]]:
+    lower = text.lower()
+    out: Dict[str, Optional[float]] = {'sex': None, 'age': None, 'weight_kg': None, 'height_cm': None, 'activity_factor': None}
+    g = RE_GENDER.search(lower)
+    if g:
+        first = g.group(1).lower()
+        out['sex'] = 'male' if first[0] == 'm' or 'man' in first or 'boy' in first else 'female'
+    a = RE_AGE.search(lower)
+    if a:
+        try:
+            age = float(a.group(1))
+            if 10 < age < 90:
+                out['age'] = age
+        except:  # noqa: E722
+            pass
+    w = RE_WEIGHT.search(lower)
+    if w:
+        try:
+            val = float(w.group(1))
+            unit = w.group(2).lower()
+            out['weight_kg'] = val if 'kg' in unit else val * 0.4536
+        except:  # noqa: E722
+            pass
+    h = RE_HEIGHT_FT_IN.search(lower) or RE_HEIGHT_FT_IN_WORDS.search(lower)
+    if h:
+        try:
+            ft = float(h.group(1)); inc = float(h.group(2))
+            out['height_cm'] = (ft*12 + inc) * 2.54
+        except:  # noqa: E722
+            pass
+    else:
+        hcm = RE_HEIGHT_CM.search(lower)
+        if hcm:
+            try:
+                out['height_cm'] = float(hcm.group(1))
+            except:  # noqa: E722
+                pass
+        else:
+            hin = RE_HEIGHT_IN.search(lower)
+            if hin:
+                try:
+                    out['height_cm'] = float(hin.group(1)) * 2.54
+                except:  # noqa: E722
+                    pass
+    for k,f in ACTIVITY_FACTORS.items():
+        if k in lower:
+            out['activity_factor'] = f
+            break
+    return out
 
-Please provide a helpful, encouraging fitness coaching response:"""
-    
+def rebuild_profile(history: List[HistoryTurn]) -> Dict[str, Optional[float]]:
+    profile: Dict[str, Optional[float]] = {'sex': None, 'age': None, 'weight_kg': None, 'height_cm': None, 'activity_factor': None}
+    for turn in history:
+        if turn.role != 'user':
+            continue
+        facts = parse_profile_facts(turn.content)
+        for k,v in facts.items():
+            if v is not None:
+                profile[k] = v
+    return profile
+
+def profile_missing(profile: Dict[str, Optional[float]]) -> List[str]:
+    return [k for k in FIELD_ORDER if not profile.get(k)]
+
+# ====================== Intent & Recall =====================
+
+def is_tdee_intent(msg: str) -> bool:
+    low = msg.lower()
+    return any(k in low for k in TDEE_KEYWORDS) or bool(START_TDEE_TRIGGERS.search(low))
+
+def detect_recall(last_user: str) -> Optional[str]:
+    lower = last_user.lower()
+    for field, pat in RECALL_PATTERNS.items():
+        if pat.search(lower):
+            return field
+    return None
+
+def already_asked(field: str, history: List[HistoryTurn]) -> bool:
+    scanned = 0
+    for turn in reversed(history):
+        if scanned > 30:
+            break
+        if turn.role == 'assistant':
+            scanned += 1
+            if ASK_PATTERNS[field].search(turn.content) and '?' in turn.content:
+                return True
+    return False
+
+# ====================== TDEE Helpers ========================
+
+def compute_tdee(sex: str, weight_kg: float, height_cm: float, age: float, act: float) -> Tuple[float,float]:
+    if sex.startswith('m'):
+        bmr = 10*weight_kg + 6.25*height_cm - 5*age + 5
+    else:
+        bmr = 10*weight_kg + 6.25*height_cm - 5*age - 161
+    return bmr, bmr*act
+
+def format_tdee(profile: Dict[str, Any], bmr: float, tdee: float) -> str:
+    low = int(tdee*0.95); high = int(tdee*1.05); b = int(bmr)
+    bmi_note = ''
     try:
-        # Generate response with Gemini
-        response = model.generate_content(
-            prompt,
-            generation_config=genai.types.GenerationConfig(
-                temperature=0.7,
-                max_output_tokens=300,
-                top_p=0.8,
-                top_k=40
-            )
-        )
-        
-        ai_response = response.text.strip()
-        logger.info(f"✅ Gemini response ({len(ai_response)} chars): {ai_response[:50]}...")
-        return ai_response
-        
-    except Exception as e:
-        logger.error(f"❌ Gemini API failed: {e}")
-        return "I'm having trouble connecting to my AI brain right now. Please try again in a moment!"
+        bmi = profile['weight_kg']/((profile['height_cm']/100)**2)  # type: ignore
+        if bmi < 16 or bmi > 40:
+            bmi_note = ' If you can, talk to a health professional.'
+    except:  # noqa: E722
+        pass
+    return (f"Your body at rest uses about {b} calories (BMR). Daily burn about {low}-{high} calories (TDEE). "
+            f"This is only a rough guess, not medical advice.{bmi_note}")
 
-# Add CORS middleware
+# ====================== Prompt & Generation =================
+
+def format_known(profile: Dict[str, Optional[float]]) -> str:
+    parts = []
+    if profile['sex']: parts.append(f"sex={profile['sex']}")
+    if profile['age']: parts.append(f"age={int(profile['age'])}")
+    if profile['weight_kg']: parts.append(f"weight_kg={round(profile['weight_kg'],1)}")
+    if profile['height_cm']: parts.append(f"height_cm={int(profile['height_cm'])}")
+    if profile['activity_factor']: parts.append("activity=yes")
+    return ', '.join(parts) if parts else 'none'
+
+def build_prompt(history: List[HistoryTurn], profile: Dict[str, Optional[float]], intent: str, missing: List[str]) -> str:
+    MAX_CHARS = 4000
+    trimmed: List[HistoryTurn] = []
+    total = 0
+    for turn in reversed(history):
+        c = len(turn.content)
+        if total + c > MAX_CHARS:
+            break
+        trimmed.append(turn)
+        total += c
+    trimmed.reverse()
+    system_lines = [
+        APP_PERSONA,
+        "Rules: Ask for only one missing data item when user wants calories. If already asked and still missing, give general starter advice without repeating. Keep sentences 3-6 words."
+    ]
+    if intent == 'tdee':
+        system_lines.append(f"Known profile: {format_known(profile)}")
+        if missing:
+            system_lines.append(f"Missing (internal): {','.join(missing)}")
+    convo_lines = []
+    for t in trimmed:
+        if t.role == 'system':
+            convo_lines.append(f"System: {t.content}")
+        elif t.role == 'user':
+            convo_lines.append(f"User: {t.content}")
+        else:
+            convo_lines.append(f"Assistant: {t.content}")
+    prompt = "\n".join([
+        "System: " + " | ".join(system_lines),
+        *convo_lines,
+        "Assistant:"  # model continues
+    ])
+    return prompt
+
+def generate_response(prompt: str) -> str:
+    if not init_model():
+        return "Model not ready. Set GEMINI_API_KEY and retry."
+    try:
+        resp = MODEL.generate_content(prompt, generation_config=genai.types.GenerationConfig(  # type: ignore
+            temperature=0.55,
+            max_output_tokens=180,
+            top_p=0.9,
+            top_k=40
+        ))
+        return (resp.text or '').strip()  # type: ignore
+    except Exception as e:  # noqa: BLE001
+        logger.error(f"Gemini failure: {e}")
+        return "Sorry. Trouble answering now. Try again soon."
+
+# ====================== FastAPI App =========================
+app = FastAPI()
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:5173", "http://127.0.0.1:3000", "http://127.0.0.1:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-class ChatRequest(BaseModel):
-    message: str
-
-
-class ChatResponse(BaseModel):
-    response: str
-
-
 @app.on_event("startup")
-async def startup_event():
-    """Initialize Gemini AI when the app starts"""
-    logger.info("🚀 Starting AI Fitness Coach with Gemini...")
-    initialize_ai()
+async def _startup():
+    init_model()
 
 @app.get("/")
 async def root():
-    return {"message": "AI Fitness Coach with Gemini is running!", "ai_status": "Gemini 1.5 Flash" if model else "Not initialized"}
+    return {"message": "AI Fitness Coach running", "model": GEMINI_MODEL_NAME}
 
-@app.post("/chat", response_model=ChatResponse)
-async def chat(request: ChatRequest) -> ChatResponse:
-    """Chat with the AI fitness coach using Gemini"""
-    response = generate_ai_response(request.message)
-    return ChatResponse(response=response)
+@app.post("/chat2", response_model=HistoryChatResponse)
+async def chat2(req: HistoryChatRequest) -> HistoryChatResponse:
+    history = req.history
+    user_turns = [t for t in history if t.role == 'user']
+    if not user_turns:
+        empty_profile = {'sex': None,'age': None,'weight_kg': None,'height_cm': None,'activity_factor': None}
+        return HistoryChatResponse(response="Please send a message.", profile=empty_profile, tdee=None, missing=FIELD_ORDER, asked_this_intent=[], intent='none')
+    last_user = user_turns[-1].content
+    profile = rebuild_profile(history)
+    missing = profile_missing(profile)
+
+    # Recall intent
+    recall_field = detect_recall(last_user)
+    if recall_field:
+        val = profile.get(recall_field)
+        if val is None:
+            resp_text = "I do not have that yet."
+        else:
+            if recall_field == 'height_cm':
+                cm = round(val); total_inches = val/2.54; ft = int(total_inches//12); inc = int(round(total_inches%12))
+                resp_text = f"You told me your height is about {cm} cm (~{ft}' {inc}\")."
+            elif recall_field == 'weight_kg':
+                kg = round(val,1); lbs = round(kg/0.4536)
+                resp_text = f"Your weight saved is about {kg} kg (~{lbs} lb)."
+            elif recall_field == 'age':
+                resp_text = f"You said you are {int(val)} years old."
+            elif recall_field == 'sex':
+                resp_text = f"You told me you are {profile.get('sex')}."
+            else:  # activity_factor
+                for name,f in ACTIVITY_FACTORS.items():
+                    if profile['activity_factor'] and abs(f - profile['activity_factor']) < 1e-6:
+                        resp_text = f"Saved activity level is {name} (factor {f})."
+                        break
+                else:
+                    resp_text = f"Saved activity factor is {profile['activity_factor']}"
+        return HistoryChatResponse(response=resp_text, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent='recall')
+
+    intent = 'tdee' if is_tdee_intent(last_user) else 'general'
+
+    if intent == 'tdee':
+        if not missing:
+            bmr,tdee_val = compute_tdee(profile['sex'], profile['weight_kg'], profile['height_cm'], profile['age'], profile['activity_factor'])  # type: ignore
+            low = int(tdee_val*0.95); high = int(tdee_val*1.05)
+            resp_text = format_tdee(profile, bmr, tdee_val)
+            return HistoryChatResponse(response=resp_text, profile=profile, tdee={'bmr': int(bmr), 'tdee': int(tdee_val), 'range': [low, high]}, missing=[], asked_this_intent=[], intent='tdee')
+        ask_field: Optional[str] = None
+        for f in FIELD_ORDER:
+            if f in missing and not already_asked(f, history):
+                ask_field = f
+                break
+        if ask_field:
+            human = FIELD_HUMAN[ask_field]
+            resp_text = f"Can you tell me your {human}?" if ask_field != 'activity_factor' else "What is your activity level? (sedentary, light, moderate, very, extra)"
+            return HistoryChatResponse(response=resp_text, profile=profile, tdee=None, missing=missing, asked_this_intent=[ask_field], intent='tdee')
+        resp_text = "I can still guide you. Start with 2 easy full body days and a short daily walk. Share missing info later for numbers."
+        return HistoryChatResponse(response=resp_text, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent='tdee')
+
+    # General coaching
+    prompt = build_prompt(history, profile, intent, missing)
+    model_reply = generate_response(prompt)
+    return HistoryChatResponse(response=model_reply, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
