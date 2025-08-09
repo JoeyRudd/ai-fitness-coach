@@ -60,6 +60,13 @@ ACTIVITY_FACTORS: Dict[str,float] = {
     'extra': 1.9
 }
 
+# Keywords/phrases that imply a physically active job (heuristic)
+ACTIVE_JOB_WORDS = [
+    'produce', 'warehouse', 'stock', 'stocking', 'retail', 'server', 'barista', 'nurse', 'construction', 'lifting boxes',
+    'on my feet', 'on feet', 'walk', 'walking'
+]
+RESISTANCE_TRAINING_WORDS = ['lift', 'lifting', 'weights', 'weight training', 'gym', 'resistance']
+
 TDEE_KEYWORDS = ["tdee", "maintenance", "calorie", "calories", "bmr", "burn each day", "daily burn"]
 START_TDEE_TRIGGERS = re.compile(r"(what\s+should\s+i\s+start|where\s+do\s+i\s+start|how\s+do\s+i\s+start)", re.I)
 
@@ -107,6 +114,36 @@ def init_model() -> bool:
         return False
 
 # ====================== Profile & Parsing ===================
+
+def infer_activity_factor(text: str) -> Optional[float]:
+    """Infer an activity factor from a free-form lifestyle / job description.
+    Very lightweight heuristic: if user describes a standing / walking job a few days per week
+    plus resistance training, classify as moderate. If only active job OR only lifting a few days, classify light.
+    Return None if insufficient evidence.
+    """
+    low = text.lower()
+    job_hits = sum(1 for w in ACTIVE_JOB_WORDS if w in low)
+    train_hits = sum(1 for w in RESISTANCE_TRAINING_WORDS if w in low)
+    # Detect days/hours patterns to increase confidence
+    days = len(re.findall(r"(\b\d\s*days?\b|\b\d\s*x\s*per\s*week\b|\b\d\s*/\s*7\b)", low))
+    hours = len(re.findall(r"\b\d{1,2}\s*hours?\b", low))
+    if job_hits == 0 and train_hits == 0:
+        return None
+    # If both an active job (standing/walking) and lifting present, call it moderate
+    if job_hits and train_hits:
+        return ACTIVITY_FACTORS['moderate']
+    # Only job OR only training: light unless heavy construction style keywords and many hours
+    if job_hits:
+        if 'construction' in low or 'warehouse' in low or hours >= 2 and days >= 1:
+            return ACTIVITY_FACTORS['moderate']
+        return ACTIVITY_FACTORS['light']
+    if train_hits:
+        # Lifting 3-4x/week alone usually still light overall for desk job
+        freq_match = re.search(r"(\b3|4|5)\s*(x|times)?\s*(a|per)?\s*week", low)
+        if freq_match:
+            return ACTIVITY_FACTORS['light']
+        return ACTIVITY_FACTORS['sedentary']
+    return None
 
 def parse_profile_facts(text: str) -> Dict[str, Optional[Any]]:
     lower = text.lower()
@@ -156,6 +193,11 @@ def parse_profile_facts(text: str) -> Dict[str, Optional[Any]]:
         if k in lower:
             out['activity_factor'] = f
             break
+    # If not directly stated, attempt heuristic inference
+    if out['activity_factor'] is None:
+        inferred = infer_activity_factor(text)
+        if inferred:
+            out['activity_factor'] = inferred
     return out
 
 def rebuild_profile(history: List[HistoryTurn]) -> Dict[str, Optional[Any]]:
@@ -195,6 +237,18 @@ def already_asked(field: str, history: List[HistoryTurn]) -> bool:
             if ASK_PATTERNS[field].search(turn.content) and '?' in turn.content:
                 return True
     return False
+
+def unresolved_tdee(history: List[HistoryTurn]) -> bool:
+    """Return True if user previously asked about calories/TDEE and we have not yet provided a numeric TDEE answer."""
+    saw_tdee_request = False
+    for turn in history:
+        if turn.role == 'user' and is_tdee_intent(turn.content):
+            saw_tdee_request = True
+        if saw_tdee_request and turn.role == 'assistant':
+            # Consider TDEE delivered if assistant gave BMR/TDEE numbers pattern
+            if re.search(r"(BMR).*(Daily burn)|Daily burn about", turn.content, re.I):
+                return False
+    return saw_tdee_request
 
 # ====================== TDEE Helpers ========================
 
@@ -333,7 +387,7 @@ async def chat2(req: HistoryChatRequest) -> HistoryChatResponse:
                     resp_text = f"Saved activity factor is {profile['activity_factor']}"
         return HistoryChatResponse(response=resp_text, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent='recall')
 
-    intent = 'tdee' if is_tdee_intent(last_user) else 'general'
+    intent = 'tdee' if (is_tdee_intent(last_user) or unresolved_tdee(history)) else 'general'
 
     if intent == 'tdee':
         if not missing:
