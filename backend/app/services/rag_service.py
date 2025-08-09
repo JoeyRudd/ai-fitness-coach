@@ -34,8 +34,9 @@ GEMINI_MODEL_NAME = settings.gemini_model_name
 RE_GENDER = re.compile(r"\b(male|female|man|woman|boy|girl|m|f)\b", re.I)
 RE_AGE = re.compile(r"\b(\d{2})\s*(?:yo|y/o|years?|yrs?)?\b", re.I)
 RE_WEIGHT = re.compile(r"\b(\d{2,3})\s*(kg|kilograms|lbs|lb|pounds?)\b", re.I)
-RE_HEIGHT_FT_IN = re.compile(r"(\d)[’']\s*(\d{1,2})")
+RE_HEIGHT_FT_IN = re.compile(r"(\d)\s*[’']\s*(\d{1,2})")  # allow optional space: matches 5'6 or 5 '6
 RE_HEIGHT_FT_IN_WORDS = re.compile(r"(\d)\s*(?:ft|foot|feet)\s*(\d{1,2})\s*(?:in|inch|inches)?", re.I)
+EXTRA_HEIGHT_FT_IN_LOOSE = re.compile(r"(\d)\s+(\d{1,2})\b")  # fallback like '5 6'
 RE_HEIGHT_CM = re.compile(r"\b(\d{2,3})\s*cm\b", re.I)
 RE_HEIGHT_IN = re.compile(r"\b(\d{2})\s*(?:in|inch|inches)\b", re.I)
 
@@ -184,6 +185,16 @@ class RAGService:
             except Exception:  # noqa: BLE001
                 pass
         h = RE_HEIGHT_FT_IN.search(lower) or RE_HEIGHT_FT_IN_WORDS.search(lower)
+        if not h:
+            # fallback loose pattern only if it looks like feet+inches (avoid capturing age patterns): ensure inches <=11
+            loose = EXTRA_HEIGHT_FT_IN_LOOSE.search(lower)
+            if loose:
+                try:
+                    ft_tmp = int(loose.group(1)); in_tmp = int(loose.group(2))
+                    if 0 <= in_tmp <= 11:  # plausible inches
+                        h = loose
+                except Exception:
+                    pass
         if h:
             try:
                 ft = float(h.group(1)); inc = float(h.group(2))
