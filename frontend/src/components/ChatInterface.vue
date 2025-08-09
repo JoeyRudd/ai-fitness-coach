@@ -138,7 +138,7 @@ interface Props {
 }
 
 const props = withDefaults(defineProps<Props>(), {
-  apiEndpoint: 'http://localhost:8000/chat2',
+  apiEndpoint: 'http://localhost:8000/api/v1/chat2',
   inputLabel: 'Ask your fitness question:',
   placeholder: 'e.g., Create a workout plan for beginners, or suggest a healthy meal...',
   sendButtonText: 'Send',

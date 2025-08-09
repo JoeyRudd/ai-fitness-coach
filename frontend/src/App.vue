@@ -23,7 +23,7 @@
 
             <!-- Main Chat Interface -->
             <ChatInterface
-                api-endpoint="http://localhost:8000/chat2"
+                api-endpoint="http://localhost:8000/api/v1/chat2"
                 input-label="Ask your fitness question:"
                 placeholder="e.g., Create a workout plan for beginners, help me plan my meals, or ask about exercises..."
                 send-button-text="Get Fitness Advice"

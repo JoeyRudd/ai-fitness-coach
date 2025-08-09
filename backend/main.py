@@ -411,3 +411,5 @@ async def chat2(req: HistoryChatRequest) -> HistoryChatResponse:
     prompt = build_prompt(history, profile, intent, missing)
     model_reply = generate_response(prompt)
     return HistoryChatResponse(response=model_reply, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
+
+from app.main import app  # new modular app instance
