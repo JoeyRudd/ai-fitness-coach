@@ -25,12 +25,19 @@ class HistoryTurn(BaseModel):
     role: Literal['user','assistant','system']
     content: str
 
+class Profile(BaseModel):
+    sex: Optional[str]
+    age: Optional[float]
+    weight_kg: Optional[float]
+    height_cm: Optional[float]
+    activity_factor: Optional[float]
+
 class HistoryChatRequest(BaseModel):
     history: List[HistoryTurn]
 
 class HistoryChatResponse(BaseModel):
     response: str
-    profile: Dict[str, Optional[float]]
+    profile: Profile
     tdee: Optional[Dict[str, Any]]
     missing: List[str]
     asked_this_intent: List[str]
@@ -101,9 +108,9 @@ def init_model() -> bool:
 
 # ====================== Profile & Parsing ===================
 
-def parse_profile_facts(text: str) -> Dict[str, Optional[float]]:
+def parse_profile_facts(text: str) -> Dict[str, Optional[Any]]:
     lower = text.lower()
-    out: Dict[str, Optional[float]] = {'sex': None, 'age': None, 'weight_kg': None, 'height_cm': None, 'activity_factor': None}
+    out: Dict[str, Optional[Any]] = {'sex': None, 'age': None, 'weight_kg': None, 'height_cm': None, 'activity_factor': None}
     g = RE_GENDER.search(lower)
     if g:
         first = g.group(1).lower()
@@ -151,8 +158,8 @@ def parse_profile_facts(text: str) -> Dict[str, Optional[float]]:
             break
     return out
 
-def rebuild_profile(history: List[HistoryTurn]) -> Dict[str, Optional[float]]:
-    profile: Dict[str, Optional[float]] = {'sex': None, 'age': None, 'weight_kg': None, 'height_cm': None, 'activity_factor': None}
+def rebuild_profile(history: List[HistoryTurn]) -> Dict[str, Optional[Any]]:
+    profile: Dict[str, Optional[Any]] = {'sex': None, 'age': None, 'weight_kg': None, 'height_cm': None, 'activity_factor': None}
     for turn in history:
         if turn.role != 'user':
             continue
@@ -162,7 +169,7 @@ def rebuild_profile(history: List[HistoryTurn]) -> Dict[str, Optional[float]]:
                 profile[k] = v
     return profile
 
-def profile_missing(profile: Dict[str, Optional[float]]) -> List[str]:
+def profile_missing(profile: Dict[str, Optional[Any]]) -> List[str]:
     return [k for k in FIELD_ORDER if not profile.get(k)]
 
 # ====================== Intent & Recall =====================

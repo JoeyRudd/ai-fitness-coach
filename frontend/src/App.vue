@@ -23,20 +23,14 @@
 
             <!-- Main Chat Interface -->
             <ChatInterface
-                api-endpoint="http://localhost:8000/chat"
+                api-endpoint="http://localhost:8000/chat2"
                 input-label="Ask your fitness question:"
                 placeholder="e.g., Create a workout plan for beginners, help me plan my meals, or ask about exercises..."
                 send-button-text="Get Fitness Advice"
-                loading-text="Thinking..."
-                loading-message="Getting your personalized fitness advice..."
-                response-title="AI Fitness Coach Response:"
                 :textarea-rows="4"
                 :max-length="1000"
-                :show-clear-button="true"
-                :enable-mock-response="true"
                 @message-sent="onMessageSent"
                 @response-received="onResponseReceived"
-                @error="onError"
             />
 
             <!-- Connection Status -->
@@ -161,12 +155,6 @@ const onResponseReceived = (response: string): void => {
     setTimeout(() => {
         connectionStatus.value = "";
     }, 3000);
-};
-
-const onError = (error: string): void => {
-    console.error("Chat error:", error);
-    addInteraction("Error", error);
-    connectionStatus.value = `Error: ${error}`;
 };
 </script>
 
