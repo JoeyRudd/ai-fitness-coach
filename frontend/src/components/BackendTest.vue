@@ -38,6 +38,8 @@ const message = ref<string>("");
 const error = ref<string>("");
 const loading = ref<boolean>(false);
 
+const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || '/api/v1';
+
 // Function to test backend connection
 const testBackend = async (): Promise<void> => {
     loading.value = true;
@@ -45,14 +47,26 @@ const testBackend = async (): Promise<void> => {
     message.value = "";
 
     try {
-        // Call the backend's root endpoint
-        const response = await axios.get("http://localhost:8000/");
-        message.value = response.data.message || response.data;
+        // Proper chat POST (backend only defines POST for /chat)
+        const base = API_BASE.replace(/\/$/, '');
+        const response = await axios.post(`${base}/chat`, { history: [], message: 'test connection' }, { headers: { 'Content-Type': 'application/json' } });
+        if (response.data && response.data.response) {
+            message.value = `OK (chars: ${response.data.response.length})`;
+        } else {
+            message.value = 'Received response but unexpected shape';
+        }
     } catch (err: any) {
-        console.error("Error calling backend:", err);
-        error.value = `Failed to connect to backend: ${err.message}`;
+        console.error('Error calling backend chat:', err?.response || err);
+        if (err?.response) {
+            error.value = `Failed: ${err.response.status} ${err.response.statusText}`;
+        } else {
+            error.value = `Failed: ${err.message}`;
+        }
     } finally {
         loading.value = false;
     }
 };
 </script>
+
+<style scoped>
+</style>

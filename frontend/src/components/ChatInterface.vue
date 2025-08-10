@@ -137,14 +137,26 @@ interface Props {
   maxLength?: number
 }
 
-const props = withDefaults(defineProps<Props>(), {
-  apiEndpoint: 'http://localhost:8000/api/v1/chat2',
-  inputLabel: 'Ask your fitness question:',
-  placeholder: 'e.g., Create a workout plan for beginners, or suggest a healthy meal...',
-  sendButtonText: 'Send',
-  textareaRows: 3,
-  maxLength: 1000
-});
+// Replace with simple defineProps (no local var refs in defaults)
+const props = defineProps<Props>();
+
+// Local fallbacks (non-reactive to external prop changes, sufficient here)
+const inputLabel = props.inputLabel ?? 'Ask your fitness question:';
+const placeholder = props.placeholder ?? 'e.g., Create a workout plan for beginners, or suggest a healthy meal...';
+const sendButtonText = props.sendButtonText ?? 'Send';
+const textareaRows = props.textareaRows ?? 3;
+const maxLength = props.maxLength ?? 1000;
+
+function resolveEndpoint(): string {
+  // Prefer explicit prop
+  if (props.apiEndpoint) return props.apiEndpoint;
+  // Always use relative path so Vite proxy handles dev; env base only if absolute
+  const envBase = import.meta.env.VITE_API_BASE as string | undefined;
+  if (envBase && /^https?:\/\//.test(envBase)) return `${envBase.replace(/\/$/, '')}/chat`;
+  return '/api/v1/chat';
+}
+
+console.debug('[ChatInterface] Using API endpoint:', resolveEndpoint());
 
 // Emits
 const emit = defineEmits<{ messageSent: [message: string]; responseReceived: [response: string] }>();
@@ -236,7 +248,7 @@ function maybeSummarizeHistory() {
 async function sendMessage() {
   const content = userInput.value.trim();
   if (!content) return;
-  if (props.maxLength && content.length > props.maxLength) return;
+  if (maxLength && content.length > maxLength) return;
 
   history.value.push({ role: 'user', content });
   emit('messageSent', content);
@@ -245,9 +257,30 @@ async function sendMessage() {
   loading.value = true;
   maybeSummarizeHistory();
 
+  const endpoint = resolveEndpoint();
+
   try {
-    const res = await axios.post<BackendResponse>(props.apiEndpoint, { history: history.value }, { headers: { 'Content-Type': 'application/json' } });
+    const isNewChatEndpoint = /\/chat\/?$/.test(endpoint);
+    const payload = isNewChatEndpoint
+      ? {
+          history: history.value
+            .filter(t => t.role !== 'system')
+            .slice(0, -1)
+            .map(t => ({ role: t.role, content: t.content })),
+          message: content
+        }
+      : { history: history.value };
+
+    const res = await axios({
+      url: endpoint,
+      method: 'POST',
+      data: payload,
+      headers: { 'Content-Type': 'application/json' }
+    });
     const data = res.data;
+    if (!data || typeof data !== 'object' || (data as any).response === undefined) {
+      throw new Error('Unexpected response shape');
+    }
     history.value.push({ role: 'assistant', content: data.response });
     profile.value = data.profile || profile.value;
     tdeeData.value = data.tdee;
@@ -255,7 +288,17 @@ async function sendMessage() {
     askedThisIntent.value = data.asked_this_intent || [];
     intent.value = data.intent || '';
     emit('responseReceived', data.response);
-  } catch (e) {
+  } catch (e: any) {
+    if (e?.response) {
+      console.error('[ChatInterface] Chat request failed', {
+        status: e.response.status,
+        statusText: e.response.statusText,
+        data: e.response.data,
+        endpoint
+      });
+    } else {
+      console.error('[ChatInterface] Chat request error', e, { endpoint });
+    }
     history.value.push({ role: 'assistant', content: 'Sorry, there was an error processing that. Please try again.' });
   } finally {
     loading.value = false;
