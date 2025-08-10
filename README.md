@@ -82,13 +82,12 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 
 ## Testing
 
-Backend tests use pytest.
-
-Command (from repository root):
+Run tests from within the `backend/` directory (not the repo root):
 
 ```
+cd backend
 pytest -q
 ```
 
-Or use the provided VS Code task "Run Pytests". The Gemini key is optional during tests; absence triggers deterministic fallback text which tests account for.
+You can also use the VS Code task "Run Pytests" which invokes pytest with the correct context. The Gemini key is optional during tests; if absent, deterministic fallback responses are used.
 
