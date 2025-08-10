@@ -59,3 +59,36 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 - Clear, actionable steps
 - No overwhelming technical jargon
 
+## Environment Variables
+
+| Name | Scope | Default | Description |
+|------|-------|---------|-------------|
+| GEMINI_API_KEY | backend | (empty) | Google Generative AI API key. If missing, system returns deterministic fallback instead of failing. |
+| GEMINI_MODEL / GEMINI_MODEL_NAME | backend | gemini-1.5-flash | Model name. `gemini_client` reads `GEMINI_MODEL`; settings class uses `GEMINI_MODEL_NAME`. Either works. |
+| ALLOWED_ORIGINS | backend | http://localhost:5173 | Comma-separated list for CORS (frontend dev origin). |
+| VITE_API_BASE | frontend | http://localhost:8000/api/v1 | Base URL the frontend uses for API calls. Must include version prefix. |
+
+## Architecture Overview
+
+- API Layer: FastAPI app (`backend/app/main.py`) mounting versioned routers (`api/v1/endpoints/chat.py`). Provides `/api/v1/chat` (primary) and `/api/v1/chat2` (legacy) plus health checks.
+- Models: Pydantic data models in `models/chat.py` standardize message, profile, and response payloads.
+- Services Layer:
+  - `rag_service.RAGService`: Orchestrates intent detection (TDEE vs general), profile extraction, recall requests, TDEE calculation, lightweight RAG grounding, and LLM call / fallback.
+  - `profile_logic.py`: Pure, unit-testable parsing + computation utilities (fact extraction, TDEE math, recall detection).
+  - `gemini_client.py`: Thin Gemini SDK wrapper with lazy init, prompt sanitization, and safe fallback when key/model unavailable.
+  - `rag_index.py`: Placeholder RAG index that loads markdown docs; future plan to build embeddings (Sentence Transformers) + FAISS vector search. Currently returns no retrievals (graceful no-op) until implemented.
+- Knowledge Base: Markdown sources in `knowledge_base/` used for future grounding (currently loaded, not yet vectorized).
+- Fallback Logic: When LLM unavailable (missing key or SDK failure) deterministic short supportive responses are generated for general queries; TDEE path still functions using local heuristics.
+
+## Testing
+
+Backend tests use pytest.
+
+Command (from repository root):
+
+```
+pytest -q
+```
+
+Or use the provided VS Code task "Run Pytests". The Gemini key is optional during tests; absence triggers deterministic fallback text which tests account for.
+
