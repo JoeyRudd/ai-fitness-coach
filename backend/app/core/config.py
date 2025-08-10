@@ -14,7 +14,8 @@ class Settings(BaseSettings):
     field name, e.g. GEMINI_API_KEY, GEMINI_MODEL_NAME.
     """
 
-    gemini_api_key: str = Field(default="your_secret_api_key_here", alias="GEMINI_API_KEY")
+    # Empty default so missing key triggers clean fallback (no invalid key attempts)
+    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
     gemini_model_name: str = Field(default="gemini-1.5-flash", alias="GEMINI_MODEL_NAME")
     allowed_origins: str = Field(default="http://localhost:5173", alias="ALLOWED_ORIGINS")  # comma-separated
     knowledge_base_path: str = Field(default="knowledge_base", alias="KNOWLEDGE_BASE_PATH")
@@ -22,7 +23,8 @@ class Settings(BaseSettings):
     embedding_model_name: str = Field(default="all-MiniLM-L6-v2", alias="EMBEDDING_MODEL_NAME")
 
     class Config:
-        env_file = ".env"
+        # Allow either project root .env or backend/.env (first found wins)
+        env_file = (".env", "backend/.env")
         case_sensitive = False
 
     @property
