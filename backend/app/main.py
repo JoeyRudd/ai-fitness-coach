@@ -8,7 +8,7 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.allowed_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -16,6 +16,10 @@ app.add_middleware(
 
 app.include_router(chat.router, prefix="/api/v1")
 
+@app.get("/healthz")
+async def healthz() -> dict[str, str]:
+    return {"status": "ok"}
+
 @app.get("/")
-async def root():
+async def root() -> dict[str, str]:
     return {"message": "AI Fitness Coach running", "model": settings.gemini_model_name}
