@@ -19,16 +19,22 @@ from app.models.chat import (
     HistoryChatResponse,
     Profile,
 )
+from app.services.rag_index import RAGIndex
 
 logger = logging.getLogger("fitness_coach")
 
 # ====================== Constants / Persona =================
 APP_PERSONA = (
-    "You are a friendly, concise beginner fitness coach. "
+    "You are a friendly, encouraging, safety‑first beginner fitness coach. "
     "Target user: mid‑40s true beginner. Use very simple words and short sentences (3-6). "
     "No bullet lists. Positive, safe, plain language. Avoid medical claims."
 )
 GEMINI_MODEL_NAME = settings.gemini_model_name
+# Prompt instruction block appended after persona & optional context
+ANTI_HALLUCINATION_RULES = (
+    "If the answer is not in the context or user message, say you are not sure. "
+    "Do NOT invent numbers or facts. Keep tone supportive."
+)
 
 # ====================== Regex & Patterns ====================
 RE_GENDER = re.compile(r"\b(male|female|man|woman|boy|girl|m|f)\b", re.I)
@@ -86,6 +92,14 @@ class RAGService:
     def __init__(self) -> None:
         self._model = None
         self._configure_genai()
+        # RAG index (lightweight placeholder). Load at startup; embeddings still not built.
+        try:
+            self._rag_index = RAGIndex()
+            kb_path = getattr(settings, 'knowledge_base_path', 'knowledge_base')
+            self._rag_index.load(kb_path)
+            logger.info("RAG knowledge base loaded for prompt grounding: %d docs", len(getattr(self._rag_index, '_docs', [])))
+        except Exception as e:  # noqa: BLE001
+            logger.warning("Failed to init RAG index: %s", e)
 
     # ----- Model init -----
     def _configure_genai(self) -> None:
@@ -136,7 +150,16 @@ class RAGService:
             resp_text = "I can still guide you. Start with 2 easy full body days and a short daily walk. Share missing info later for numbers."
             return HistoryChatResponse(response=resp_text, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent='tdee')
 
-        prompt = self._build_prompt(history, profile, intent, missing)
+        # ---- General intent path w/ RAG grounding ----
+        retrieved_chunks: List[str] = []
+        try:
+            if hasattr(self, '_rag_index'):
+                retrieved_chunks = self._rag_index.retrieve(last_user, k=4)  # type: ignore
+        except Exception as e:  # noqa: BLE001
+            logger.warning("RAG retrieval failed: %s", e)
+            retrieved_chunks = []
+
+        prompt = self._build_prompt_general(last_user, retrieved_chunks)
         model_reply = self._generate_response(prompt)
         return HistoryChatResponse(response=model_reply, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
 
@@ -333,6 +356,34 @@ class RAGService:
         ])
         return prompt
 
+    def _build_prompt_general(self, user_message: str, retrieved: List[str]) -> str:
+        """Builds prompt for non-TDEE intents.
+
+        Order:
+        1. Persona
+        2. Retrieved context block (if any)
+        3. Anti-hallucination & style instructions
+        4. User message
+        """
+        context_block = ""
+        if retrieved:
+            # Join and lightly separate chunks. Truncate each chunk to avoid very long prompts.
+            safe_chunks = []
+            for c in retrieved[:4]:
+                c_trim = c.strip()
+                if len(c_trim) > 500:
+                    c_trim = c_trim[:500] + "..."
+                safe_chunks.append(c_trim)
+            context_block = "\n\nContext:\n" + "\n---\n".join(safe_chunks)
+        prompt = (
+            f"Persona: {APP_PERSONA}\n"
+            f"{context_block}\n"
+            f"Instructions: {ANTI_HALLUCINATION_RULES} Keep sentences 3-6 words.\n"
+            f"User: {user_message}\n"
+            f"Assistant:"  # model should continue
+        )
+        return prompt
+
     def _generate_response(self, prompt: str) -> str:
         if not self._model:
             return "Model not ready. Set GEMINI_API_KEY and retry."
@@ -368,5 +419,5 @@ class RAGService:
                 return f"Saved activity level is {name} (factor {f})."
         return f"Saved activity factor is {profile['activity_factor']}"
 
-# Singleton instance
-tag_service = RAGService()
+# Singleton instance (renamed for clarity)
+rag_service = RAGService()
