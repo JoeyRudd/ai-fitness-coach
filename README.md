@@ -89,5 +89,3 @@ cd backend
 pytest -q
 ```
 
-You can also use the VS Code task "Run Pytests" which invokes pytest with the correct context. The Gemini key is optional during tests; if absent, deterministic fallback responses are used.
-
