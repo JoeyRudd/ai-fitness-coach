@@ -15,7 +15,7 @@ A simple, user-friendly AI-powered fitness and nutrition coach application desig
 ### Backend
 - **FastAPI** - Modern, fast web framework for building APIs
 - **Google Gemini (google-generativeai)** - LLM for responses
-- **Sentence Transformers** + **FAISS** (planned) - RAG retrieval
+- **Sentence Transformers** (MiniLM) + **NumPy cosine similarity** for lightweight RAG retrieval (FAISS removed for simplicity; can be reintroduced later if KB scales)
 
 ### Frontend
 - **Vue 3** - Progressive JavaScript framework with Composition API
@@ -66,26 +66,56 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 | GEMINI_API_KEY | backend | (empty) | Google Generative AI API key. If missing, system returns deterministic fallback instead of failing. |
 | GEMINI_MODEL / GEMINI_MODEL_NAME | backend | gemini-1.5-flash | Model name. `gemini_client` reads `GEMINI_MODEL`; settings class uses `GEMINI_MODEL_NAME`. Either works. |
 | ALLOWED_ORIGINS | backend | http://localhost:5173 | Comma-separated list for CORS (frontend dev origin). |
+| KNOWLEDGE_BASE_PATH | backend | knowledge_base | Override location of markdown knowledge base. |
+| EMBEDDING_MODEL_NAME | backend | all-MiniLM-L6-v2 | Sentence transformer model used for embeddings. |
+| MAX_RETRIEVAL_CHUNKS | backend | 3 | How many context chunks to inject into prompt. |
 | VITE_API_BASE | frontend | http://localhost:8000/api/v1 | Base URL the frontend uses for API calls. Must include version prefix. |
 
 ## Architecture Overview
 
-- API Layer: FastAPI app (`backend/app/main.py`) mounting versioned routers (`api/v1/endpoints/chat.py`). Provides `/api/v1/chat` (primary) and `/api/v1/chat2` (legacy) plus health checks.
+- API Layer: FastAPI app (`backend/app/main.py`) mounting versioned routers (`api/v1/endpoints/chat.py`).
 - Models: Pydantic data models in `models/chat.py` standardize message, profile, and response payloads.
 - Services Layer:
-  - `rag_service.RAGService`: Orchestrates intent detection (TDEE vs general), profile extraction, recall requests, TDEE calculation, lightweight RAG grounding, and LLM call / fallback.
-  - `profile_logic.py`: Pure, unit-testable parsing + computation utilities (fact extraction, TDEE math, recall detection).
-  - `gemini_client.py`: Thin Gemini SDK wrapper with lazy init, prompt sanitization, and safe fallback when key/model unavailable.
-  - `rag_index.py`: Placeholder RAG index that loads markdown docs; future plan to build embeddings (Sentence Transformers) + FAISS vector search. Currently returns no retrievals (graceful no-op) until implemented.
-- Knowledge Base: Markdown sources in `knowledge_base/` used for future grounding (currently loaded, not yet vectorized).
-- Fallback Logic: When LLM unavailable (missing key or SDK failure) deterministic short supportive responses are generated for general queries; TDEE path still functions using local heuristics.
+  - `rag_service.RAGService`: Intent detection (TDEE vs general), profile extraction, recall, TDEE calculation, RAG grounding, LLM call / fallback.
+  - `rag_index.RAGIndex`: Loads markdown, chunks, encodes with MiniLM, stores normalized embeddings, performs cosine similarity via NumPy (fallback design—no FAISS).
+  - `profile_logic.py`: Fact extraction & calculations.
+  - `gemini_client.py`: Gemini SDK wrapper with simple generation call.
+- Knowledge Base: Local markdown sources in `knowledge_base/` ground general fitness answers.
+- Fallback Logic: If LLM not configured, deterministic supportive responses.
+
+## RAG Retrieval Flow
+1. Load markdown docs from `knowledge_base/` (recursive).
+2. Chunk into ~800 char windows with overlap.
+3. Embed chunks using `sentence-transformers` (MiniLM) with normalization.
+4. Store embeddings matrix (float32) in memory.
+5. On user query (non-TDEE): embed query, compute similarity scores via matrix @ vector, select top k.
+6. Inject context block into prompt (sources + truncated text) with anti-hallucination guidance.
+
+## Local Development
+
+Backend:
+```
+make install
+make backend
+```
+Frontend:
+```
+cd frontend
+npm install
+npm run dev
+```
 
 ## Testing
 
-Run tests from within the `backend/` directory (not the repo root):
+```
+make test
+```
 
-```
-cd backend
-pytest -q
-```
+## Future Enhancements
+- Optional: Reintroduce FAISS / approximate search if knowledge base grows large.
+- Add source citation formatting in answers.
+- Persist user profile between sessions.
+
+## License
+Internal / prototype. Add a license if distributing.
 

@@ -17,6 +17,9 @@ class Settings(BaseSettings):
     gemini_api_key: str = Field(default="your_secret_api_key_here", alias="GEMINI_API_KEY")
     gemini_model_name: str = Field(default="gemini-1.5-flash", alias="GEMINI_MODEL_NAME")
     allowed_origins: str = Field(default="http://localhost:5173", alias="ALLOWED_ORIGINS")  # comma-separated
+    knowledge_base_path: str = Field(default="knowledge_base", alias="KNOWLEDGE_BASE_PATH")
+    max_retrieval_chunks: int = Field(default=3, alias="MAX_RETRIEVAL_CHUNKS")
+    embedding_model_name: str = Field(default="all-MiniLM-L6-v2", alias="EMBEDDING_MODEL_NAME")
 
     class Config:
         env_file = ".env"

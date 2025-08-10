@@ -92,7 +92,7 @@ class RAGService:
     def __init__(self) -> None:
         self._model = None
         self._configure_genai()
-        # RAG index (lightweight placeholder). Load at startup; embeddings still not built.
+        # RAG index load
         try:
             self._rag_index = RAGIndex()
             kb_path = getattr(settings, 'knowledge_base_path', 'knowledge_base')
@@ -151,20 +151,31 @@ class RAGService:
             return HistoryChatResponse(response=resp_text, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent='tdee')
 
         # ---- General intent path w/ RAG grounding ----
-        retrieved_chunks: List[str] = []
+        retrieved: List[Dict[str, str]] = []
         try:
             if hasattr(self, '_rag_index'):
-                retrieved_chunks = self._rag_index.retrieve(last_user, k=4)  # type: ignore
+                retrieved = self._rag_index.retrieve(last_user, k=settings.max_retrieval_chunks)  # type: ignore
         except Exception as e:  # noqa: BLE001
             logger.warning("RAG retrieval failed: %s", e)
-            retrieved_chunks = []
+            retrieved = []
+
+        retrieved_strings: List[str] = []
+        if retrieved:
+            # Build context block per spec
+            context_lines = []
+            for r in retrieved:
+                chunk_text = r['text'].strip()
+                if len(chunk_text) > 500:
+                    chunk_text = chunk_text[:500] + '...'
+                context_lines.append(f"[{r['source']}] {chunk_text}")
+            retrieved_strings = context_lines
 
         # Deterministic fallback path when no model configured
         if intent != 'tdee' and not self._model:
-            fallback = self._fallback_general(last_user, retrieved_chunks, profile)
+            fallback = self._fallback_general(last_user, retrieved_strings, profile)
             return HistoryChatResponse(response=fallback, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
 
-        prompt = self._build_prompt_general(last_user, retrieved_chunks)
+        prompt = self._build_prompt_general(last_user, retrieved_strings)
         model_reply = self._generate_response(prompt)
         return HistoryChatResponse(response=model_reply, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
 
@@ -214,12 +225,11 @@ class RAGService:
                 pass
         h = RE_HEIGHT_FT_IN.search(lower) or RE_HEIGHT_FT_IN_WORDS.search(lower)
         if not h:
-            # fallback loose pattern only if it looks like feet+inches (avoid capturing age patterns): ensure inches <=11
             loose = EXTRA_HEIGHT_FT_IN_LOOSE.search(lower)
             if loose:
                 try:
                     ft_tmp = int(loose.group(1)); in_tmp = int(loose.group(2))
-                    if 0 <= in_tmp <= 11:  # plausible inches
+                    if 0 <= in_tmp <= 11:
                         h = loose
                 except Exception:
                     pass
@@ -362,30 +372,22 @@ class RAGService:
         return prompt
 
     def _build_prompt_general(self, user_message: str, retrieved: List[str]) -> str:
-        """Builds prompt for non-TDEE intents.
-
-        Order:
-        1. Persona
-        2. Retrieved context block (if any)
-        3. Anti-hallucination & style instructions
-        4. User message
-        """
         context_block = ""
         if retrieved:
-            # Join and lightly separate chunks. Truncate each chunk to avoid very long prompts.
             safe_chunks = []
-            for c in retrieved[:4]:
+            for c in retrieved[:settings.max_retrieval_chunks]:
                 c_trim = c.strip()
                 if len(c_trim) > 500:
                     c_trim = c_trim[:500] + "..."
                 safe_chunks.append(c_trim)
-            context_block = "\n\nContext:\n" + "\n---\n".join(safe_chunks)
+            if safe_chunks:
+                context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + "\nOnly use this info if helpful. If unsure, say you are not sure."
         prompt = (
             f"Persona: {APP_PERSONA}\n"
             f"{context_block}\n"
             f"Instructions: {ANTI_HALLUCINATION_RULES} Keep sentences 3-6 words.\n"
             f"User: {user_message}\n"
-            f"Assistant:"  # model should continue
+            f"Assistant:"
         )
         return prompt
 
@@ -418,36 +420,30 @@ class RAGService:
             return f"You said you are {int(val)} years old."
         if field == 'sex':
             return f"You told me your biological sex is {profile.get('sex')}."
-        # activity
         for name,f in ACTIVITY_FACTORS.items():
             if profile['activity_factor'] and abs(f - profile['activity_factor']) < 1e-6:
                 return f"Saved activity level is {name} (factor {f})."
         return f"Saved activity factor is {profile['activity_factor']}"
 
     def _fallback_general(self, user_message: str, retrieved: List[str], profile: Dict[str, Any]) -> str:
-        """Rule based deterministic reply when LLM unavailable.
-        Keeps style: short, simple, supportive. Uses first retrieved chunk if present.
-        """
-        base = "I am in simple mode."  # indicates fallback
+        base = "I am in simple mode."
         context_sentence = ''
         if retrieved:
             first = retrieved[0].strip().replace('\n', ' ')
-            # take first sentence-ish up to 160 chars
             m = re.split(r'[.!?]', first)
             if m and m[0]:
                 snippet = m[0][:160].strip()
                 context_sentence = f" From notes: {snippet}."[:180]
         if not context_sentence:
             if re.search(r'frequency|how often|days|week', user_message, re.I):
-                context_sentence = " Start with two days."  # 3 words
+                context_sentence = " Start with two days."
             elif re.search(r'nutrition|eat|diet|protein', user_message, re.I):
-                context_sentence = " Focus on simple meals."  # 4 words
+                context_sentence = " Focus on simple meals."
             elif re.search(r'form|injury|hurt|pain', user_message, re.I):
-                context_sentence = " Go slow. Stop pain."  # 4 short
+                context_sentence = " Go slow. Stop pain."
             else:
-                context_sentence = " Start small. Add slowly."  # generic supportive
-        tail = " Ask again if unsure."  # encourage engagement
+                context_sentence = " Start small. Add slowly."
+        tail = " Ask again if unsure."
         return (base + context_sentence + tail).strip()
 
-# Singleton instance (renamed for clarity)
 rag_service = RAGService()

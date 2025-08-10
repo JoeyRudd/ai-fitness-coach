@@ -7,8 +7,7 @@ Description-Content-Type: text/markdown
 Requires-Dist: fastapi>=0.100.0
 Requires-Dist: uvicorn[standard]>=0.25.0
 Requires-Dist: transformers>=4.40.0
-Requires-Dist: sentence-transformers>=3.0.0
-Requires-Dist: faiss-cpu>=1.8.0
+Requires-Dist: sentence-transformers==2.7.0
 Requires-Dist: torch>=2.0.0
 Requires-Dist: accelerate>=0.20.0
 Requires-Dist: pydantic>=2.5.0

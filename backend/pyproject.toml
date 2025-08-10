@@ -12,8 +12,8 @@ dependencies = [
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.25.0",
     "transformers>=4.40.0",
-    "sentence-transformers>=3.0.0",
-    "faiss-cpu>=1.8.0",
+    "sentence-transformers==2.7.0",
+    # faiss-cpu removed; using pure NumPy similarity fallback
     "torch>=2.0.0",
     "accelerate>=0.20.0",
     "pydantic>=2.5.0",
@@ -28,16 +28,16 @@ dev = ["pytest", "pytest-asyncio", "black", "isort", "mypy", "pre-commit"]
 [tool.black]
 line-length = 88
 target-version = ['py39']
-include = '\.pyi?$'
+include = '\\.pyi?$'
 extend-exclude = '''
 /(
   # directories
-  \.eggs
-  | \.git
-  | \.hg
-  | \.mypy_cache
-  | \.tox
-  | \.venv
+  \\.eggs
+  | \\.git
+  | \\.hg
+  | \\.mypy_cache
+  | \\.tox
+  | \\.venv
   | build
   | dist
 )/
@@ -64,8 +64,8 @@ warn_unreachable = true
 strict_equality = true
 
 [tool.pytest.ini_options]
-# Updated test path to local backend/tests directory after relocating tests
-testpaths = ["backend/tests", "tests", "../tests"]
+# Updated test path to include backend/app/tests
+testpaths = ["backend/tests", "tests", "../tests", "backend/app/tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
