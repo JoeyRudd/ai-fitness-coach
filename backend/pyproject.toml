@@ -73,11 +73,11 @@ addopts = "-v --tb=short"
 asyncio_mode = "auto"
 
 [tool.pyright]
-include = ["**/*.py"]
-exclude = ["**/node_modules", "**/__pycache__", "**/venv"]
-venvPath = "."
-venv = "venv"
-pythonVersion = "3.13"
+include = ["backend/app"]
+exclude = ["**/node_modules", "**/__pycache__", "**/venv", "**/.venv"]
+venvPath = "backend"
+venv = ".venv"
+pythonVersion = "3.11"
 pythonPlatform = "Darwin"
 typeCheckingMode = "basic"
 reportMissingImports = true
