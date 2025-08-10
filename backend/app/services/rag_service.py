@@ -67,7 +67,7 @@ RECALL_PATTERNS = {
     'height_cm': re.compile(r"(my\s+height|how\s+tall\s+am\s+i)", re.I),
     'weight_kg': re.compile(r"(my\s+weight|how\s+much\s+do\s+i\s+weigh)", re.I),
     'age': re.compile(r"(my\s+age|how\s+old\s+am\s+i)", re.I),
-    'sex': re.compile(r"(my\s+(sex|gender))", re.I),
+    'sex': re.compile(r"(my\s+(sex|biological\s+sex))", re.I),
     'activity_factor': re.compile(r"(my\s+activity|activity\s+level)", re.I)
 }
 
@@ -80,7 +80,7 @@ ASK_PATTERNS = {
 }
 FIELD_ORDER = ['sex','age','weight_kg','height_cm','activity_factor']
 FIELD_HUMAN = {
-    'sex': 'sex (male or female)',
+    'sex': 'biological sex (male or female)',
     'age': 'age',
     'weight_kg': 'weight',
     'height_cm': 'height',
@@ -158,6 +158,11 @@ class RAGService:
         except Exception as e:  # noqa: BLE001
             logger.warning("RAG retrieval failed: %s", e)
             retrieved_chunks = []
+
+        # Deterministic fallback path when no model configured
+        if intent != 'tdee' and not self._model:
+            fallback = self._fallback_general(last_user, retrieved_chunks, profile)
+            return HistoryChatResponse(response=fallback, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
 
         prompt = self._build_prompt_general(last_user, retrieved_chunks)
         model_reply = self._generate_response(prompt)
@@ -412,12 +417,37 @@ class RAGService:
         if field == 'age':
             return f"You said you are {int(val)} years old."
         if field == 'sex':
-            return f"You told me you are {profile.get('sex')}."
+            return f"You told me your biological sex is {profile.get('sex')}."
         # activity
         for name,f in ACTIVITY_FACTORS.items():
             if profile['activity_factor'] and abs(f - profile['activity_factor']) < 1e-6:
                 return f"Saved activity level is {name} (factor {f})."
         return f"Saved activity factor is {profile['activity_factor']}"
+
+    def _fallback_general(self, user_message: str, retrieved: List[str], profile: Dict[str, Any]) -> str:
+        """Rule based deterministic reply when LLM unavailable.
+        Keeps style: short, simple, supportive. Uses first retrieved chunk if present.
+        """
+        base = "I am in simple mode."  # indicates fallback
+        context_sentence = ''
+        if retrieved:
+            first = retrieved[0].strip().replace('\n', ' ')
+            # take first sentence-ish up to 160 chars
+            m = re.split(r'[.!?]', first)
+            if m and m[0]:
+                snippet = m[0][:160].strip()
+                context_sentence = f" From notes: {snippet}."[:180]
+        if not context_sentence:
+            if re.search(r'frequency|how often|days|week', user_message, re.I):
+                context_sentence = " Start with two days."  # 3 words
+            elif re.search(r'nutrition|eat|diet|protein', user_message, re.I):
+                context_sentence = " Focus on simple meals."  # 4 words
+            elif re.search(r'form|injury|hurt|pain', user_message, re.I):
+                context_sentence = " Go slow. Stop pain."  # 4 short
+            else:
+                context_sentence = " Start small. Add slowly."  # generic supportive
+        tail = " Ask again if unsure."  # encourage engagement
+        return (base + context_sentence + tail).strip()
 
 # Singleton instance (renamed for clarity)
 rag_service = RAGService()

@@ -187,6 +187,11 @@ def parse_profile_facts(message: str) -> Dict[str, Optional[Any]]:
     g = RE_GENDER.search(lower)
     if g:
         first = g.group(1).lower()
+        # Avoid treating the standalone letter in the contraction "I'm" as biological sex.
+        if first in ("m", "f"):
+            full = re.search(r"\b(female|male|man|woman|boy|girl)\b", lower)
+            if full:
+                first = full.group(1).lower()
         out["sex"] = "male" if first[0] == "m" or "man" in first or "boy" in first else "female"
 
     a = RE_AGE.search(lower)

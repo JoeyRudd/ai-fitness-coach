@@ -64,7 +64,8 @@ warn_unreachable = true
 strict_equality = true
 
 [tool.pytest.ini_options]
-testpaths = ["tests"]
+# Updated test path to local backend/tests directory after relocating tests
+testpaths = ["backend/tests", "tests", "../tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
