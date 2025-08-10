@@ -39,3 +39,16 @@ def mock_generate(monkeypatch: pytest.MonkeyPatch):
         state["reply"] = value
 
     return setter
+
+
+@pytest.fixture
+def gemini_mock(monkeypatch: pytest.MonkeyPatch):
+    """Monkeypatch Gemini client LLM call to a deterministic mock response."""
+    from app.services import gemini_client
+
+    monkeypatch.setattr(
+        gemini_client,
+        "generate_response",
+        lambda prompt: "[mocked LLM]",
+    )
+    return gemini_client.generate_response
