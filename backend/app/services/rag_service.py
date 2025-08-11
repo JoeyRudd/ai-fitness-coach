@@ -95,7 +95,8 @@ class RAGService:
         # RAG index load
         try:
             self._rag_index = RAGIndex()
-            kb_path = getattr(settings, 'knowledge_base_path', 'knowledge_base')
+            kb_path = getattr(settings, 'knowledge_base_path_resolved', settings.knowledge_base_path)
+            logger.info("Using knowledge base path: %s", kb_path)
             self._rag_index.load(kb_path)
             logger.info("RAG knowledge base loaded for prompt grounding: %d docs", len(getattr(self._rag_index, '_docs', [])))
         except Exception as e:  # noqa: BLE001

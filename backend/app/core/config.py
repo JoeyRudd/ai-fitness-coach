@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 
 try:
     from pydantic_settings import BaseSettings
@@ -30,6 +31,37 @@ class Settings(BaseSettings):
     @property
     def allowed_origins_list(self) -> List[str]:  # derived helper for CORS
         return [o.strip() for o in self.allowed_origins.split(',') if o.strip()]
+
+    @property
+    def knowledge_base_path_resolved(self) -> str:
+        """Resolve knowledge_base_path against known roots when relative.
+
+        Resolution order for relative paths:
+        1) repo root / knowledge_base
+        2) backend dir / knowledge_base
+        3) current working directory / knowledge_base
+        Returns the first existing directory; else returns repo-root candidate.
+        """
+        p = Path(self.knowledge_base_path)
+        if p.is_absolute():
+            return str(p)
+        here = Path(__file__).resolve()
+        # parents[0]=core, [1]=app, [2]=backend, [3]=repo root
+        repo_root = here.parents[3] if len(here.parents) >= 4 else here.parent
+        backend_dir = here.parents[2] if len(here.parents) >= 3 else here.parent
+        candidates = [
+            (repo_root / p),
+            (backend_dir / p),
+            (Path.cwd() / p),
+        ]
+        for c in candidates:
+            try:
+                if c.exists() and c.is_dir():
+                    return str(c)
+            except Exception:
+                # In case of permission or race conditions, keep trying others
+                pass
+        return str(candidates[0])
 
 @lru_cache
 def get_settings() -> Settings:
