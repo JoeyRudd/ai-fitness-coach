@@ -1,12 +1,10 @@
 # Backend Dockerfile for AI Fitness Coach
 # Lightweight CPU-only image
-FROM python:3.11-slim AS base
+FROM python:3.11-slim
 
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
-
-
 
 WORKDIR /app
 
