@@ -148,12 +148,17 @@ const textareaRows = props.textareaRows ?? 3;
 const maxLength = props.maxLength ?? 1000;
 
 function resolveEndpoint(): string {
-  // Prefer explicit prop
-  if (props.apiEndpoint) return props.apiEndpoint;
-  // Always use relative path so Vite proxy handles dev; env base only if absolute
   const envBase = import.meta.env.VITE_API_BASE as string | undefined;
-  if (envBase && /^https?:\/\//.test(envBase)) return `${envBase.replace(/\/$/, '')}/chat`;
-  return '/api/v1/chat';
+
+  if (!envBase) {
+    // This will now be very obvious in the console if the variable is missing
+    console.error("FATAL: VITE_API_BASE environment variable is not set!");
+    // Return a non-functional path to ensure it fails
+    return '/error-vite-api-base-not-set';
+  }
+  
+  // The env var should contain the full path including /api/v1
+  return `${envBase.replace(/\/$/, '')}/chat`;
 }
 
 console.debug('[ChatInterface] Using API endpoint:', resolveEndpoint());
@@ -258,6 +263,7 @@ async function sendMessage() {
   maybeSummarizeHistory();
 
   const endpoint = resolveEndpoint();
+  console.log(`[ChatInterface] Attempting to POST to: ${endpoint}`); // New log
 
   try {
     const isNewChatEndpoint = /\/chat\/?$/.test(endpoint);

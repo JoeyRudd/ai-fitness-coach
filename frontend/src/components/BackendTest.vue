@@ -38,7 +38,14 @@ const message = ref<string>("");
 const error = ref<string>("");
 const loading = ref<boolean>(false);
 
-const API_BASE = (import.meta.env.VITE_API_BASE as string | undefined) || '/api/v1';
+const API_BASE = (() => {
+    const envBase = import.meta.env.VITE_API_BASE as string | undefined;
+    if (!envBase) {
+        console.error("FATAL: VITE_API_BASE environment variable is not set!");
+        return '/error-vite-api-base-not-set';
+    }
+    return envBase.replace(/\/$/, '');
+})();
 
 // Function to test backend connection
 const testBackend = async (): Promise<void> => {
@@ -48,7 +55,8 @@ const testBackend = async (): Promise<void> => {
 
     try {
         // Proper chat POST (backend only defines POST for /chat)
-        const base = API_BASE.replace(/\/$/, '');
+        const base = API_BASE;
+        console.log(`[BackendTest] Attempting to POST to: ${base}/chat`); // New log
         const response = await axios.post(`${base}/chat`, { history: [], message: 'test connection' }, { headers: { 'Content-Type': 'application/json' } });
         if (response.data && response.data.response) {
             message.value = `OK (chars: ${response.data.response.length})`;
