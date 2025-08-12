@@ -56,3 +56,8 @@ logs/
 .env.test.local
 .env.production.local
 .env
+
+# Python packaging artifacts
+*.egg-info/
+**/*.egg-info/
+backend/*.egg-info/
