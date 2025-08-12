@@ -25,15 +25,17 @@ logger = logging.getLogger("fitness_coach")
 
 # ====================== Constants / Persona =================
 APP_PERSONA = (
-    "You are a friendly, encouraging, safety‑first beginner fitness coach. "
-    "Target user: mid‑40s true beginner. Use very simple words and short sentences (3-6). "
-    "No bullet lists. Positive, safe, plain language. Avoid medical claims."
+    "You are a friendly, encouraging, safety‑first fitness coach for true beginners (often mid‑40s). "
+    "Sound natural and human. Warm, calm, optimistic. Use contractions and plain words. "
+    "Keep messages brief (1–3 short paragraphs). No bullet lists unless the user asks. "
+    "Avoid medical claims or diagnoses."
 )
 GEMINI_MODEL_NAME = settings.gemini_model_name
 # Prompt instruction block appended after persona & optional context
 ANTI_HALLUCINATION_RULES = (
-    "If the answer is not in the context or user message, say you are not sure. "
-    "Do NOT invent numbers or facts. Keep tone supportive."
+    "If something isn’t in the context or user message, say what you don’t know briefly, "
+    "ask one short clarifying question, or offer a safe, general guideline with a clear caveat. "
+    "Never invent numbers or facts. Be supportive without sounding robotic."
 )
 
 # ====================== Regex & Patterns ====================
@@ -45,6 +47,15 @@ RE_HEIGHT_FT_IN_WORDS = re.compile(r"(\d)\s*(?:ft|foot|feet)\s*(\d{1,2})\s*(?:in
 EXTRA_HEIGHT_FT_IN_LOOSE = re.compile(r"(\d)\s+(\d{1,2})\b")  # fallback like '5 6'
 RE_HEIGHT_CM = re.compile(r"\b(\d{2,3})\s*cm\b", re.I)
 RE_HEIGHT_IN = re.compile(r"\b(\d{2})\s*(?:in|inch|inches)\b", re.I)
+
+# Cliché safety phrases should be avoided unless user asks about safety/pain
+SAFETY_TRIGGER = re.compile(r"(safe|safety|injur(?:y|ies)|hurt|pain|form|medical|doctor|physician|therap|rehab)", re.I)
+CLICHE_PATTERNS = [
+    re.compile(r"\blisten to your body\b", re.I),
+    re.compile(r"\bif (you )?feel( any)? pain[^.?!]*\bstop\b", re.I),
+    re.compile(r"\bstop if (you )?feel pain\b", re.I),
+    re.compile(r"\btalk to (a|your) doctor\b", re.I),
+]
 
 ACTIVITY_FACTORS: Dict[str,float] = {
     'sedentary': 1.2,
@@ -178,6 +189,9 @@ class RAGService:
 
         prompt = self._build_prompt_general(last_user, retrieved_strings)
         model_reply = self._generate_response(prompt)
+        # Strip cliché safety lines unless the user asked about safety/pain
+        if intent == 'general':
+            model_reply = self._sanitize_cliches(last_user, model_reply)
         return HistoryChatResponse(response=model_reply, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
 
     # ================== Internal Helpers ==================
@@ -282,6 +296,9 @@ class RAGService:
         low = msg.lower()
         return any(k in low for k in TDEE_KEYWORDS) or bool(START_TDEE_TRIGGERS.search(low))
 
+    def _is_safety_topic(self, msg: str) -> bool:
+        return bool(SAFETY_TRIGGER.search(msg))
+
     def _detect_recall(self, last_user: str) -> Optional[str]:
         lower = last_user.lower()
         for field, pat in RECALL_PATTERNS.items():
@@ -351,7 +368,7 @@ class RAGService:
         trimmed.reverse()
         system_lines = [
             APP_PERSONA,
-            "Rules: Ask for only one missing data item when user wants calories. If already asked and still missing, give general starter advice without repeating. Keep sentences 3-6 words."
+            "Rules: Ask for only one missing data item when user wants calories. If already asked and still missing, give general starter advice without repeating. Keep it natural and concise; avoid filler like ‘That’s a great question’."
         ]
         if intent == 'tdee':
             system_lines.append(f"Known profile: {self._format_known(profile)}")
@@ -382,11 +399,14 @@ class RAGService:
                     c_trim = c_trim[:500] + "..."
                 safe_chunks.append(c_trim)
             if safe_chunks:
-                context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + "\nOnly use this info if helpful. If unsure, say you are not sure."
+                context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + "\nOnly use this info if helpful. If unsure, be transparent and ask a brief follow‑up."
+        safety_flag = "yes" if self._is_safety_topic(user_message) else "no"
         prompt = (
             f"Persona: {APP_PERSONA}\n"
             f"{context_block}\n"
-            f"Instructions: {ANTI_HALLUCINATION_RULES} Keep sentences 3-6 words.\n"
+            f"Instructions: {ANTI_HALLUCINATION_RULES} Use contractions. Be warm and conversational. Avoid filler like ‘That’s a great question’ or ‘As an AI’. "
+            f"Avoid cliché safety lines like ‘listen to your body’ or ‘if you feel pain, stop’ unless the user asks about safety, pain, injury, form, or medical care.\n"
+            f"SafetyAsked: {safety_flag}\n"
             f"User: {user_message}\n"
             f"Assistant:"
         )
@@ -434,17 +454,38 @@ class RAGService:
             m = re.split(r'[.!?]', first)
             if m and m[0]:
                 snippet = m[0][:160].strip()
-                context_sentence = f" From notes: {snippet}."[:180]
+                context_sentence = f" Here’s a quick note from my files: {snippet}."
         if not context_sentence:
             if re.search(r'frequency|how often|days|week', user_message, re.I):
-                context_sentence = " Start with two days."
+                context_sentence = " Try two full‑body days to start, plus a short daily walk."
             elif re.search(r'nutrition|eat|diet|protein', user_message, re.I):
-                context_sentence = " Focus on simple meals."
+                context_sentence = " Aim for simple, balanced meals—protein, veggies, and carbs you enjoy."
             elif re.search(r'form|injury|hurt|pain', user_message, re.I):
-                context_sentence = " Go slow. Stop pain."
+                context_sentence = " Ease in and stop if you feel sharp pain. Good form over speed."
             else:
-                context_sentence = " Start small. Add slowly."
-        tail = " Ask again if unsure."
+                context_sentence = " Start small, then add a little each week."
+        tail = " Tell me a bit more and I’ll tailor it."
         return (base + context_sentence + tail).strip()
+
+    def _sanitize_cliches(self, user_message: str, reply: str) -> str:
+        """Remove cliché safety phrases unless the user asked about safety/pain/injury.
+        Keeps tone natural by filtering entire sentences containing banned phrases.
+        """
+        if self._is_safety_topic(user_message):
+            return reply
+        # Split reply into sentences conservatively
+        parts = re.split(r"([.!?])", reply)
+        rebuilt = []
+        # Reconstruct while skipping cliché-containing sentences
+        for i in range(0, len(parts), 2):
+            sent = parts[i].strip()
+            punct = parts[i+1] if i+1 < len(parts) else ''
+            if not sent:
+                continue
+            if any(p.search(sent) for p in CLICHE_PATTERNS):
+                continue
+            rebuilt.append(sent + punct)
+        cleaned = " ".join(s.strip() for s in rebuilt).strip()
+        return cleaned or reply
 
 rag_service = RAGService()
