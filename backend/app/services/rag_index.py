@@ -42,7 +42,14 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
-try:  # sentence transformers
+try:  # TF-IDF vectorizer (much faster and smaller than sentence transformers)
+    from sklearn.feature_extraction.text import TfidfVectorizer
+    from sklearn.metrics.pairwise import cosine_similarity
+except Exception:  # noqa: BLE001
+    TfidfVectorizer = None  # type: ignore
+    cosine_similarity = None  # type: ignore
+
+try:  # sentence transformers (fallback if available)
     from sentence_transformers import SentenceTransformer  # type: ignore
 except Exception:  # noqa: BLE001
     SentenceTransformer = None  # type: ignore
@@ -194,45 +201,57 @@ class RAGIndex:
 
     # --------------------------- Build ---------------------------
     def build(self, model_name: str = None) -> None:
-        if model_name is None:
-            model_name = MODEL_CONFIG.get("sentence_transformer_model", "all-MiniLM-L6-v2") if MODEL_CONFIG else "all-MiniLM-L6-v2"
         if self._built or self._building:
-            return
-        if SentenceTransformer is None:
-            logger.warning("RAGIndex build skipped (sentence-transformers missing).")
-            return
-        if np is None:
-            logger.warning("RAGIndex build skipped (numpy missing).")
             return
         if not self._docs:
             logger.warning("No documents to build RAG index.")
             return
+        
         try:
             self._building = True
             self._chunk_docs()
             if not self._chunks:
                 logger.warning("No chunks produced; build aborted.")
                 return
+            
             texts = [c.text for c in self._chunks]
-            self._model_name = model_name
-            self._model = SentenceTransformer(model_name)
-            emb = self._model.encode(texts, normalize_embeddings=True, show_progress_bar=False).astype("float32")
-            self._embeddings = emb
-            if faiss is not None:
-                try:
-                    dim = emb.shape[1]
-                    index = faiss.IndexFlatIP(dim)
-                    index.add(emb)
-                    self._index = index
-                except Exception as e:  # noqa: BLE001
-                    logger.warning("FAISS index creation failed; falling back to pure NumPy: %s", e)
-                    self._index = None
-            else:
-                logger.info("FAISS not installed; using pure NumPy cosine similarity.")
-            self._ready = True
-            self._built = True
-            self._last_build = time()
-            logger.info("RAG index built: %d chunks (backend=%s)", len(self._chunks), "faiss" if self._index else "numpy")
+            
+            # Try TF-IDF first (fast and lightweight)
+            if TfidfVectorizer is not None and cosine_similarity is not None:
+                self._model = TfidfVectorizer(max_features=1000, stop_words='english', ngram_range=(1, 2))
+                self._embeddings = self._model.fit_transform(texts)
+                self._ready = True
+                self._built = True
+                self._last_build = time()
+                logger.info("RAG index built with TF-IDF: %d chunks", len(self._chunks))
+                return
+            
+            # Fallback to sentence transformers if available
+            if SentenceTransformer is not None and np is not None:
+                model_name = model_name or MODEL_CONFIG.get("sentence_transformer_model", "all-MiniLM-L6-v2") if MODEL_CONFIG else "all-MiniLM-L6-v2"
+                self._model_name = model_name
+                self._model = SentenceTransformer(model_name)
+                emb = self._model.encode(texts, normalize_embeddings=True, show_progress_bar=False).astype("float32")
+                self._embeddings = emb
+                
+                if faiss is not None:
+                    try:
+                        dim = emb.shape[1]
+                        index = faiss.IndexFlatIP(dim)
+                        index.add(emb)
+                        self._index = index
+                    except Exception as e:  # noqa: BLE001
+                        logger.warning("FAISS index creation failed; falling back to pure NumPy: %s", e)
+                        self._index = None
+                
+                self._ready = True
+                self._built = True
+                self._last_build = time()
+                logger.info("RAG index built with sentence transformers: %d chunks", len(self._chunks))
+                return
+            
+            logger.warning("No suitable RAG backend available (missing sklearn or sentence-transformers)")
+            
         except Exception as e:  # noqa: BLE001
             logger.warning("RAGIndex build failed: %s", e)
             self._invalidate()
@@ -247,33 +266,51 @@ class RAGIndex:
             self.build()
             if not self._ready:
                 return []
-        if not self._model or self._embeddings is None or np is None:
+        if not self._model or self._embeddings is None:
             return []
+        
         try:
-            q_emb = self._model.encode([query], normalize_embeddings=True).astype("float32")  # shape (1,D)
-            if self._index is not None:  # faiss path
-                D, I = self._index.search(q_emb, k)  # type: ignore
-                indices = [int(i) for i in I[0] if i >= 0]
-            else:  # pure numpy cosine similarity (inner product since normalized)
-                scores = (self._embeddings @ q_emb[0]).astype("float32")  # (N,)
-                if scores.size == 0:
+            # TF-IDF approach
+            if hasattr(self._model, 'transform'):  # TfidfVectorizer
+                q_vec = self._model.transform([query])
+                scores = cosine_similarity(q_vec, self._embeddings).flatten()
+                if len(scores) == 0:
                     return []
-                topk = min(k, scores.shape[0])
-                # argsort descending
-                indices = np.argpartition(-scores, topk - 1)[:topk]
-                # sort those indices by score desc
-                indices = indices[np.argsort(-scores[indices])].tolist()
+                topk = min(k, len(scores))
+                indices = np.argsort(scores)[-topk:][::-1]  # descending order
+                
+            # Sentence transformer approach
+            elif hasattr(self._model, 'encode'):  # SentenceTransformer
+                if np is None:
+                    return []
+                q_emb = self._model.encode([query], normalize_embeddings=True).astype("float32")
+                if self._index is not None:  # faiss path
+                    D, I = self._index.search(q_emb, k)  # type: ignore
+                    indices = [int(i) for i in I[0] if i >= 0]
+                else:  # pure numpy cosine similarity
+                    scores = (self._embeddings @ q_emb[0]).astype("float32")
+                    if scores.size == 0:
+                        return []
+                    topk = min(k, scores.shape[0])
+                    indices = np.argpartition(-scores, topk - 1)[:topk]
+                    indices = indices[np.argsort(-scores[indices])].tolist()
+            else:
+                return []
+            
             results: List[Dict[str, str]] = []
             seen = set()
             for idx in indices:
-                if idx in seen:
+                if idx in seen or idx >= len(self._chunks):
                     continue
                 seen.add(idx)
                 chunk = self._chunks[idx]
                 source = Path(chunk.doc_path).name
                 results.append({"text": chunk.text, "source": source})
-            logger.info("RAG retrieval k=%d hits=%s backend=%s", k, [r['source'] for r in results], "faiss" if self._index else "numpy")
+            
+            backend_type = "tfidf" if hasattr(self._model, 'transform') else ("faiss" if self._index else "numpy")
+            logger.info("RAG retrieval k=%d hits=%s backend=%s", k, [r['source'] for r in results], backend_type)
             return results
+            
         except Exception as e:  # noqa: BLE001
             logger.warning("Retrieval failed: %s", e)
             return []
