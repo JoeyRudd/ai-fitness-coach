@@ -1,9 +1,11 @@
-# Ultra-optimized build to get under 4GB
+# Ultra-optimized build with ML libraries but aggressive size reduction
 FROM python:3.11-slim as builder
 
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+    PYTHONUNBUFFERED=1 \
+    TORCH_HOME=/tmp/torch \
+    HF_HOME=/tmp/huggingface
 
 # Install minimal build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -17,14 +19,21 @@ RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 
 # Copy and install dependencies with aggressive cleanup
-COPY requirements-light.txt /tmp/requirements.txt
+COPY requirements.txt /tmp/requirements.txt
 RUN pip install --upgrade pip && \
     pip install --no-cache-dir -r /tmp/requirements.txt && \
     find /opt/venv -name "*.pyc" -delete && \
     find /opt/venv -name "__pycache__" -type d -exec rm -rf {} + && \
     find /opt/venv -name "*.pyo" -delete && \
+    find /opt/venv -name "*.so" -exec strip {} \; 2>/dev/null || true && \
     rm -rf /opt/venv/lib/python*/site-packages/*/tests && \
-    rm -rf /opt/venv/lib/python*/site-packages/*/test
+    rm -rf /opt/venv/lib/python*/site-packages/*/test && \
+    rm -rf /opt/venv/lib/python*/site-packages/torch/test && \
+    rm -rf /opt/venv/lib/python*/site-packages/torch/include && \
+    rm -rf /opt/venv/lib/python*/site-packages/torch/share && \
+    rm -rf /opt/venv/lib/python*/site-packages/transformers/tests && \
+    rm -rf /opt/venv/lib/python*/site-packages/sentence_transformers/examples && \
+    find /opt/venv -name "*.dist-info" -type d -exec rm -rf {} + 2>/dev/null || true
 
 # Final stage - ultra minimal runtime
 FROM python:3.11-slim
@@ -32,7 +41,10 @@ FROM python:3.11-slim
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PATH="/opt/venv/bin:$PATH"
+    PATH="/opt/venv/bin:$PATH" \
+    TRANSFORMERS_CACHE=/tmp/transformers \
+    HF_HOME=/tmp/huggingface \
+    TORCH_HOME=/tmp/torch
 
 WORKDIR /app
 

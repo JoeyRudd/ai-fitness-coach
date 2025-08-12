@@ -14,6 +14,7 @@ import google.generativeai as genai
 from fastapi import HTTPException
 
 from app.core.config import settings
+from app.core.model_config import MODEL_CONFIG
 from app.models.chat import (
     ChatMessage,
     HistoryChatResponse,

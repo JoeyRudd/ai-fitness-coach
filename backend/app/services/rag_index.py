@@ -34,6 +34,8 @@ from pathlib import Path
 from time import time
 from typing import List, Optional, Dict, Any
 
+from app.core.model_config import MODEL_CONFIG
+
 logger = logging.getLogger(__name__)
 
 try:  # sentence transformers
@@ -184,7 +186,9 @@ class RAGIndex:
         self._chunks = unique
 
     # --------------------------- Build ---------------------------
-    def build(self, model_name: str = "all-MiniLM-L6-v2") -> None:
+    def build(self, model_name: str = None) -> None:
+        if model_name is None:
+            model_name = MODEL_CONFIG["sentence_transformer_model"]
         if self._built or self._building:
             return
         if SentenceTransformer is None:
