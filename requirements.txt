@@ -1,7 +1,11 @@
-# Ultra-minimal dependencies to prevent build timeout
+# Core dependencies for AI Fitness Coach
 fastapi>=0.100.0
 uvicorn>=0.25.0
 pydantic>=2.5.0
 python-multipart>=0.0.10
 pydantic-settings>=2.0.0
 google-generativeai>=0.7.0
+
+# RAG (Retrieval-Augmented Generation) dependencies
+sentence-transformers>=2.5.0
+numpy>=1.24.0
