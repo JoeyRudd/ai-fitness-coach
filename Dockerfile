@@ -1,23 +1,43 @@
-FROM python:3.11-slim
+# Multi-stage build to reduce final image size
+FROM python:3.11-slim as builder
 
 ENV PIP_NO_CACHE_DIR=1 \
     PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-WORKDIR /app
-
-# Install system dependencies for torch/transformers if needed
+# Install build dependencies
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
-    libglib2.0-0 \
-    libsm6 \
-    libxext6 \
-    libxrender-dev \
+    g++ \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency list and install
-COPY requirements.txt /app/requirements.txt
-RUN pip install --upgrade pip && pip install --no-cache-dir -r /app/requirements.txt
+# Create virtual environment
+RUN python -m venv /opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+
+# Copy and install dependencies
+COPY requirements.txt /tmp/requirements.txt
+RUN pip install --upgrade pip && \
+    pip install --no-cache-dir -r /tmp/requirements.txt
+
+# Final stage - minimal runtime image
+FROM python:3.11-slim
+
+ENV PIP_NO_CACHE_DIR=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PATH="/opt/venv/bin:$PATH"
+
+# Install only runtime dependencies
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    libglib2.0-0 \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
+
+WORKDIR /app
+
+# Copy virtual environment from builder stage
+COPY --from=builder /opt/venv /opt/venv
 
 # Copy backend source and knowledge base
 COPY backend /app/backend
