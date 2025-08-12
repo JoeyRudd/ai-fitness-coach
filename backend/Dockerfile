@@ -10,9 +10,8 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
-# Copy dependency list and install
-# Using repo root requirements.txt which pins runtime deps
-COPY requirements.txt /app/requirements.txt
+# Copy backend dependency list and install
+COPY backend/requirements.txt /app/requirements.txt
 RUN pip install --upgrade pip && pip install -r /app/requirements.txt
 
 # Copy backend source and knowledge base
