@@ -1,5 +1,3 @@
-# Backend Dockerfile for AI Fitness Coach
-# Lightweight CPU-only image
 FROM python:3.11-slim
 
 ENV PIP_NO_CACHE_DIR=1 \
@@ -8,9 +6,18 @@ ENV PIP_NO_CACHE_DIR=1 \
 
 WORKDIR /app
 
+# Install system dependencies for torch/transformers if needed
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    libglib2.0-0 \
+    libsm6 \
+    libxext6 \
+    libxrender-dev \
+    && rm -rf /var/lib/apt/lists/*
+
 # Copy backend dependency list and install
 COPY backend/requirements.txt /app/requirements.txt
-RUN pip install --upgrade pip && pip install -r /app/requirements.txt
+RUN pip install --upgrade pip && pip install --no-cache-dir -r /app/requirements.txt
 
 # Copy backend source and knowledge base
 COPY backend /app/backend
