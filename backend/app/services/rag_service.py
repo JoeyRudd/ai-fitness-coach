@@ -104,7 +104,7 @@ class RAGService:
     def __init__(self) -> None:
         self._model = None
         self._configure_genai()
-        # RAG index load
+        # RAG index load - handle missing ML dependencies gracefully
         try:
             self._rag_index = RAGIndex()
             kb_path = getattr(settings, 'knowledge_base_path_resolved', settings.knowledge_base_path)
@@ -112,7 +112,8 @@ class RAGService:
             self._rag_index.load(kb_path)
             logger.info("RAG knowledge base loaded for prompt grounding: %d docs", len(getattr(self._rag_index, '_docs', [])))
         except Exception as e:  # noqa: BLE001
-            logger.warning("Failed to init RAG index: %s", e)
+            logger.warning("Failed to init RAG index (likely missing ML deps): %s", e)
+            self._rag_index = None
 
     # ----- Model init -----
     def _configure_genai(self) -> None:
@@ -166,7 +167,7 @@ class RAGService:
         # ---- General intent path w/ RAG grounding ----
         retrieved: List[Dict[str, str]] = []
         try:
-            if hasattr(self, '_rag_index'):
+            if hasattr(self, '_rag_index') and self._rag_index is not None:
                 retrieved = self._rag_index.retrieve(last_user, k=settings.max_retrieval_chunks)  # type: ignore
         except Exception as e:  # noqa: BLE001
             logger.warning("RAG retrieval failed: %s", e)
