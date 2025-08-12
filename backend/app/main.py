@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.endpoints import chat
 from app.core.config import settings
+from app.services.rag_service import rag_service
 
 app = FastAPI()
 
@@ -22,4 +23,22 @@ async def healthz() -> dict[str, str]:
 
 @app.get("/")
 async def root() -> dict[str, str]:
-    return {"message": "AI Fitness Coach running", "model": settings.gemini_model_name}
+    rag_status = "not ready"
+    rag_backend = "none"
+    chunk_count = 0
+
+    if rag_service and hasattr(rag_service, '_rag_index') and rag_service._rag_index and rag_service._rag_index._ready:
+        rag_status = "ready"
+        chunk_count = len(rag_service._rag_index._chunks)
+        if hasattr(rag_service._rag_index._model, 'transform'):
+            rag_backend = "tfidf"
+        elif hasattr(rag_service._rag_index._model, 'encode'):
+            rag_backend = "sentence-transformer"
+
+    return {
+        "message": "AI Fitness Coach running",
+        "model": settings.gemini_model_name,
+        "rag_status": rag_status,
+        "rag_backend": rag_backend,
+        "rag_chunks": str(chunk_count),
+    }
