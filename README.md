@@ -15,7 +15,8 @@ A simple, user-friendly AI-powered fitness and nutrition coach application desig
 ### Backend
 - **FastAPI** - Modern, fast web framework for building APIs
 - **Google Gemini (google-generativeai)** - LLM for responses
-- **Sentence Transformers** (MiniLM) + **NumPy cosine similarity** for lightweight RAG retrieval (FAISS removed for simplicity; can be reintroduced later if KB scales)
+- **TF-IDF (scikit-learn)** is the default for chunk embedding and retrieval (fast, lightweight, no external dependencies).
+- If the simple word-matching method (TF-IDF) isn't available, the system tries a more advanced way to understand meaning. All searching happens quickly and locally. Extra tools are only used if your knowledge base gets very large (over 5,000 pieces of information).
 
 ### Frontend
 - **Vue 3** - Progressive JavaScript framework with Composition API
@@ -73,23 +74,27 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 
 ## Architecture Overview
 
-- API Layer: FastAPI app (`backend/app/main.py`) mounting versioned routers (`api/v1/endpoints/chat.py`).
-- Models: Pydantic data models in `models/chat.py` standardize message, profile, and response payloads.
-- Services Layer:
+- **API Layer:** FastAPI app (`backend/app/main.py`) mounting versioned routers (`api/v1/endpoints/chat.py`).
+- **Models:** Pydantic data models in `models/chat.py` standardize message, profile, and response payloads.
+- **Services Layer:**
   - `rag_service.RAGService`: Intent detection (TDEE vs general), profile extraction, recall, TDEE calculation, RAG grounding, LLM call / fallback.
-  - `rag_index.RAGIndex`: Loads markdown, chunks, encodes with MiniLM, stores normalized embeddings, performs cosine similarity via NumPy (fallback design—no FAISS).
+  - `rag_index.RAGIndex`: Loads markdown, chunks, and by default uses TF-IDF (scikit-learn) for chunk embedding and retrieval. If unavailable, falls back to sentence-transformers (MiniLM) with NumPy or FAISS for similarity (all in memory, no external DB by default).
   - `profile_logic.py`: Fact extraction & calculations.
   - `gemini_client.py`: Gemini SDK wrapper with simple generation call.
-- Knowledge Base: Local markdown sources in `knowledge_base/` ground general fitness answers.
-- Fallback Logic: If LLM not configured, deterministic supportive responses.
+- **Knowledge Base:** Local markdown sources in `knowledge_base/` ground general fitness answers.
+- **Fallback Logic:** If LLM not configured, deterministic supportive responses.
 
 ## RAG Retrieval Flow
 1. Load markdown docs from `knowledge_base/` (recursive).
 2. Chunk into ~800 char windows with overlap.
-3. Embed chunks using `sentence-transformers` (MiniLM) with normalization.
-4. Store embeddings matrix (float32) in memory.
-5. On user query (non-TDEE): embed query, compute similarity scores via matrix @ vector, select top k.
-6. Inject context block into prompt (sources + truncated text) with anti-hallucination guidance.
+3. By default, embed chunks using TF-IDF (scikit-learn). If unavailable, use sentence-transformers (MiniLM) with normalization.
+4. Store chunk vectors in memory (TF-IDF matrix or embedding matrix; no FAISS, no external DB).
+5. On user query (non-TDEE):
+  - If TF-IDF is available, embed query and compute cosine similarity with chunk TF-IDF vectors.
+  - If not, use sentence-transformers to embed and compare with chunk embeddings (NumPy or FAISS).
+6. Select top k chunks.
+7. Inject context block into prompt (sources + truncated text) with anti-hallucination guidance ("If you don't know, say so").
+8. Fallback: If Gemini is not configured, return deterministic supportive responses.
 
 ## Local Development
 
