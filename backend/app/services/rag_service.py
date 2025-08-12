@@ -14,7 +14,11 @@ import google.generativeai as genai
 from fastapi import HTTPException
 
 from app.core.config import settings
-from app.core.model_config import MODEL_CONFIG
+# Make model_config import optional since we removed ML dependencies
+try:
+    from app.core.model_config import MODEL_CONFIG
+except ImportError:
+    MODEL_CONFIG = None
 from app.models.chat import (
     ChatMessage,
     HistoryChatResponse,

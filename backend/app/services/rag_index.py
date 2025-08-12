@@ -34,7 +34,11 @@ from pathlib import Path
 from time import time
 from typing import List, Optional, Dict, Any
 
-from app.core.model_config import MODEL_CONFIG
+# Make model_config import optional since we removed ML dependencies
+try:
+    from app.core.model_config import MODEL_CONFIG
+except ImportError:
+    MODEL_CONFIG = {"sentence_transformer_model": "all-MiniLM-L6-v2"}
 
 logger = logging.getLogger(__name__)
 
@@ -49,7 +53,10 @@ try:  # pragma: no cover
 except Exception:  # noqa: BLE001
     faiss = None  # type: ignore
 
-import numpy as np  # lightweight dependency already present (torch pulls it in)
+try:
+    import numpy as np  # lightweight dependency already present (torch pulls it in)
+except ImportError:
+    np = None  # type: ignore
 
 # --------------------------- Data Classes ---------------------------
 @dataclass
@@ -81,7 +88,7 @@ class RAGIndex:
     def __init__(self) -> None:
         self._docs: List[Document] = []
         self._chunks: List[Chunk] = []
-        self._embeddings: Optional[np.ndarray] = None  # shape (N, D)
+        self._embeddings: Optional[Any] = None  # shape (N, D) - numpy array when available
         self._index = None  # faiss index if available
         self._model: Optional[Any] = None
         self._ready = False
@@ -188,11 +195,14 @@ class RAGIndex:
     # --------------------------- Build ---------------------------
     def build(self, model_name: str = None) -> None:
         if model_name is None:
-            model_name = MODEL_CONFIG["sentence_transformer_model"]
+            model_name = MODEL_CONFIG.get("sentence_transformer_model", "all-MiniLM-L6-v2") if MODEL_CONFIG else "all-MiniLM-L6-v2"
         if self._built or self._building:
             return
         if SentenceTransformer is None:
             logger.warning("RAGIndex build skipped (sentence-transformers missing).")
+            return
+        if np is None:
+            logger.warning("RAGIndex build skipped (numpy missing).")
             return
         if not self._docs:
             logger.warning("No documents to build RAG index.")
@@ -237,7 +247,7 @@ class RAGIndex:
             self.build()
             if not self._ready:
                 return []
-        if not self._model or self._embeddings is None:
+        if not self._model or self._embeddings is None or np is None:
             return []
         try:
             q_emb = self._model.encode([query], normalize_embeddings=True).astype("float32")  # shape (1,D)
