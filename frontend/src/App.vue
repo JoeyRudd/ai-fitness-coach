@@ -1,5 +1,5 @@
 <template>
-    <div class="min-h-screen bg-gray-50 dark:bg-neutral-950 transition-colors duration-300">
+    <div class="h-screen bg-gray-50 transition-colors duration-300 flex flex-col" :style="isDark ? 'background-color: #0c151b;' : 'background-color: rgb(249 250 251);'">
         <!-- Theme Toggle (top-right) -->
         <button
             class="fixed top-3 sm:top-4 right-3 sm:right-4 z-50 inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-gray-200/70 bg-white/80 px-3 sm:px-4 py-2 shadow-lg backdrop-blur-sm hover:bg-white dark:border-neutral-800 dark:bg-neutral-900/80 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-200 transition-colors min-h-[40px] sm:min-h-[44px]"
@@ -17,7 +17,7 @@
         </button>
 
         <!-- Header -->
-        <div class="w-full bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-neutral-800">
+        <div class="w-full bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-neutral-800 flex-shrink-0">
             <div class="w-full px-4 sm:px-6 py-3 sm:py-4">
                 <h1 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
                     Hypertrofit
@@ -26,7 +26,7 @@
         </div>
 
         <!-- Main Chat Interface - Full Width -->
-        <div class="flex-1 flex flex-col h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)]">
+        <div class="flex-1 min-h-0">
             <ChatInterface
                 input-label="Ask your fitness question:"
                 placeholder="e.g., Create a workout plan for beginners, help me plan my meals, or ask about exercises..."

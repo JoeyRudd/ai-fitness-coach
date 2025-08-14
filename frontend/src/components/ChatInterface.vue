@@ -1,7 +1,7 @@
 <template>
-  <div class="flex flex-col h-full w-full">
+  <div class="flex flex-col h-full w-full min-h-0">
     <!-- Chat History - Takes up most of the screen -->
-    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6">
+    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 min-h-0">
       <!-- Welcome Message -->
       <div v-if="history.length === 1" class="text-center py-8 sm:py-12">
         <div class="text-2xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-3 sm:mb-4">
@@ -18,18 +18,18 @@
           <!-- User message -->
           <div
             v-if="turn.role === 'user'"
-            class="ml-auto w-full max-w-[95%] sm:max-w-[90%]"
+            class="ml-auto w-full max-w-[50%] sm:max-w-[45%]"
           >
-            <div class="bg-blue-600 text-white rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap shadow-sm text-sm sm:text-base">
+            <div class="bg-blue-600 text-white rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap shadow-sm text-sm sm:text-base">
               {{ turn.content }}
             </div>
           </div>
           <!-- Assistant message -->
           <div
             v-else-if="turn.role === 'assistant'"
-            class="mr-auto w-full max-w-[95%] sm:max-w-[90%]"
+            class="mr-auto w-full max-w-[50%] sm:max-w-[45%]"
           >
-            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 sm:px-4 sm:py-3 rounded-2xl whitespace-pre-wrap shadow-sm text-sm sm:text-base">
+            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl whitespace-pre-wrap shadow-sm text-sm sm:text-base">
               {{ turn.content }}
             </div>
           </div>
@@ -44,8 +44,8 @@
 
         <!-- Loading indicator -->
         <div v-if="loading" class="flex w-full">
-          <div class="mr-auto w-full max-w-[95%] sm:max-w-[90%]">
-            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-3 py-2.5 sm:px-4 sm:py-3 rounded-2xl shadow-sm flex items-center space-x-2 text-sm sm:text-base">
+          <div class="mr-auto w-full max-w-[50%] sm:max-w-[45%]">
+            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl shadow-sm flex items-center space-x-2 text-sm sm:text-base">
               <div class="flex space-x-1">
                 <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
                 <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay:0.1s"></span>
@@ -99,7 +99,7 @@
             :placeholder="placeholder"
             :rows="textareaRows"
             :maxlength="maxLength"
-            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 pr-12 border border-gray-300 dark:border-neutral-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 resize-none transition-all duration-200 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
+            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 pr-12 border border-gray-300 dark:border-neutral-600 rounded-3xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 resize-none transition-all duration-200 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
             :disabled="loading"
             @keydown.enter.prevent="handleEnter"
             @keydown.ctrl.enter.prevent="sendMessage"
@@ -117,7 +117,7 @@
           <button
             @click="sendMessage"
             :disabled="loading || !userInput.trim() || (!!maxLength && userInput.length > maxLength)"
-            class="px-4 py-2.5 sm:px-6 sm:py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md text-sm sm:text-base min-h-[44px] sm:min-h-[40px]"
+            class="px-4 py-2.5 sm:px-6 sm:py-2 bg-blue-600 text-white font-medium rounded-2xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md text-sm sm:text-base min-h-[44px] sm:min-h-[40px] w-auto max-w-[200px]"
           >
             <span v-if="!loading">{{ sendButtonText }}</span>
             <span v-else class="flex items-center">
