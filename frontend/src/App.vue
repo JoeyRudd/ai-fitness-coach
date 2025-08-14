@@ -2,7 +2,7 @@
     <div class="h-screen bg-gray-50 transition-colors duration-300 flex flex-col" :style="isDark ? 'background-color: #0c151b;' : 'background-color: rgb(249 250 251);'">
         <!-- Theme Toggle (top-right) -->
         <button
-            class="fixed top-3 sm:top-4 right-3 sm:right-4 z-50 inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-gray-200/70 bg-white/80 px-3 sm:px-4 py-2 shadow-lg backdrop-blur-sm hover:bg-white dark:border-neutral-800 dark:bg-neutral-900/80 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-200 transition-colors min-h-[40px] sm:min-h-[44px]"
+            class="fixed top-3 sm:top-4 right-3 sm:right-4 z-50 inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-gray-200/70 bg-gray-100 px-3 sm:px-4 py-2 shadow-lg hover:bg-gray-200 dark:border-neutral-800 dark:bg-[#080e12] dark:hover:bg-neutral-700 text-gray-700 dark:text-gray-200 transition-colors min-h-[40px] sm:min-h-[44px]"
             @click="toggleTheme"
             aria-label="Toggle color scheme"
         >
@@ -17,7 +17,7 @@
         </button>
 
         <!-- Header -->
-        <div class="w-full bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-neutral-800 flex-shrink-0">
+        <div class="w-full bg-gray-100 dark:bg-[#080e12] flex-shrink-0">
             <div class="w-full px-4 sm:px-6 py-3 sm:py-4">
                 <h1 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
                     Hypertrofit
@@ -51,11 +51,11 @@
         <div v-if="interactionHistory.length > 0" class="fixed bottom-3 sm:bottom-4 right-3 sm:right-4 z-30">
             <details class="text-xs sm:text-sm">
                 <summary
-                    class="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-white/80 dark:bg-neutral-900/80 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-gray-200 dark:border-neutral-800 backdrop-blur-sm min-h-[32px] sm:min-h-[36px] flex items-center"
+                    class="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-gray-50 dark:bg-[#080e12] px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-gray-200 dark:border-neutral-800 min-h-[32px] sm:min-h-[36px] flex items-center"
                 >
                     Recent ({{ interactionHistory.length }})
                 </summary>
-                <div class="absolute bottom-full right-0 mb-2 p-3 sm:p-4 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg shadow-lg backdrop-blur-sm w-[280px] sm:min-w-[300px] max-h-60 overflow-y-auto">
+                <div class="absolute bottom-full right-0 mb-2 p-3 sm:p-4 bg-gray-50 dark:bg-[#080e12] border border-gray-200 dark:border-neutral-800 rounded-lg shadow-lg w-[280px] sm:min-w-[300px] max-h-60 overflow-y-auto">
                     <h3 class="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2 sm:mb-3">
                         Recent Interactions
                     </h3>

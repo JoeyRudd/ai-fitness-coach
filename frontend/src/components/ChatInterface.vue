@@ -20,7 +20,7 @@
             v-if="turn.role === 'user'"
             class="ml-auto w-full max-w-[50%] sm:max-w-[45%]"
           >
-            <div class="bg-blue-600 text-white rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap shadow-sm text-sm sm:text-base">
+            <div class="bg-blue-600 text-white rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap text-sm sm:text-base">
               {{ turn.content }}
             </div>
           </div>
@@ -29,7 +29,7 @@
             v-else-if="turn.role === 'assistant'"
             class="mr-auto w-full max-w-[50%] sm:max-w-[45%]"
           >
-            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl whitespace-pre-wrap shadow-sm text-sm sm:text-base">
+            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl whitespace-pre-wrap text-sm sm:text-base">
               {{ turn.content }}
             </div>
           </div>
@@ -45,7 +45,7 @@
         <!-- Loading indicator -->
         <div v-if="loading" class="flex w-full">
           <div class="mr-auto w-full max-w-[50%] sm:max-w-[45%]">
-            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl shadow-sm flex items-center space-x-2 text-sm sm:text-base">
+            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl flex items-center space-x-2 text-sm sm:text-base">
               <div class="flex space-x-1">
                 <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
                 <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay:0.1s"></span>
@@ -90,7 +90,7 @@
     </div>
 
     <!-- Input Section - Fixed at bottom -->
-    <div class="border-t border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm">
+    <div class="bg-gray-100 dark:bg-[#080e12]">
       <div class="w-full px-3 sm:px-6 py-3 sm:py-4">
         <div class="relative">
           <textarea
