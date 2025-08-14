@@ -1,7 +1,7 @@
 {
-  "name": "ai-fitness-coach",
+  "name": "hypertrofit",
   "version": "1.0.0",
-  "description": "AI-powered fitness and nutrition coach app",
+  "description": "Hypertrofit - AI-powered fitness and nutrition coach app",
   "scripts": {
     "dev": "cd frontend && npm run dev",
     "build": "cd frontend && npm run build",

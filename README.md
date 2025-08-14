@@ -1,4 +1,4 @@
-# AI Fitness Coach
+# Hypertrofit
 
 A simple, user-friendly AI-powered fitness and nutrition coach application designed for beginners. The AI provides encouraging, safety-first advice using plain English explanations.
 
@@ -28,7 +28,7 @@ A simple, user-friendly AI-powered fitness and nutrition coach application desig
 ## Project Structure
 
 ```
-ai-fitness-coach/
+hypertrofit/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI application (single app instance)

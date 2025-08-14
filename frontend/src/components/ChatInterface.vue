@@ -5,7 +5,7 @@
       <!-- Welcome Message -->
       <div v-if="history.length === 1" class="text-center py-8 sm:py-12">
         <div class="text-2xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-3 sm:mb-4">
-          AI Fitness Coach
+          Hypertrofit
         </div>
         <div class="text-base sm:text-lg text-gray-600 dark:text-gray-400 w-full max-w-4xl mx-auto px-2">
           {{ history[0].content }}
