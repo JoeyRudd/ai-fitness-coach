@@ -16,68 +16,68 @@
             <span class="text-sm font-medium">{{ isDark ? 'Dark' : 'Light' }}</span>
         </button>
 
-        <div class="container mx-auto px-4 py-8 max-w-4xl">
-            <h1 class="text-4xl font-bold text-center text-gray-800 dark:text-gray-100 mb-8">
-                AI Fitness Coach
-            </h1>
+        <!-- Header -->
+        <div class="w-full bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-neutral-800">
+            <div class="w-full px-6 py-4">
+                <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+                    AI Fitness Coach
+                </h1>
+            </div>
+        </div>
 
-            <!-- Main Chat Interface -->
+        <!-- Main Chat Interface - Full Width -->
+        <div class="flex-1 flex flex-col h-[calc(100vh-120px)]">
             <ChatInterface
                 input-label="Ask your fitness question:"
                 placeholder="e.g., Create a workout plan for beginners, help me plan my meals, or ask about exercises..."
                 send-button-text="Get Fitness Advice"
-                :textarea-rows="4"
+                :textarea-rows="3"
                 :max-length="1000"
                 @message-sent="onMessageSent"
                 @response-received="onResponseReceived"
             />
+        </div>
 
-            <!-- Connection Status -->
-            <div
-                v-if="connectionStatus"
-                class="mt-4 p-3 rounded-lg text-sm border"
-                :class="connectionStatusClass"
-            >
-                {{ connectionStatus }}
-            </div>
+        <!-- Connection Status - Fixed at bottom above input -->
+        <div
+            v-if="connectionStatus"
+            class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-40 px-4 py-2 rounded-lg text-sm border shadow-lg"
+            :class="connectionStatusClass"
+        >
+            {{ connectionStatus }}
+        </div>
 
-            <!-- Backend Test Component -->
-            <details class="mt-8 pt-8 border-t border-gray-200 dark:border-neutral-800">
+        <!-- Interaction History - Collapsible sidebar or modal -->
+        <div v-if="interactionHistory.length > 0" class="fixed bottom-4 right-4 z-30">
+            <details class="text-sm">
                 <summary
-                    class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-4 cursor-pointer hover:text-gray-900 dark:hover:text-white"
+                    class="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-white/80 dark:bg-neutral-900/80 px-3 py-2 rounded-lg border border-gray-200 dark:border-neutral-800 backdrop-blur-sm"
                 >
-                    Backend Connection Test (Click to expand)
+                    Recent ({{ interactionHistory.length }})
                 </summary>
-                <div class="mt-4">
-                    <BackendTest />
-                </div>
-            </details>
-
-            <!-- Interaction History -->
-            <div v-if="interactionHistory.length > 0" class="mt-6">
-                <h3 class="text-lg font-semibold text-gray-700 dark:text-gray-200 mb-3">
-                    Recent Interactions
-                </h3>
-                <div class="space-y-2 max-h-40 overflow-y-auto">
-                    <div
-                        v-for="(interaction, index) in interactionHistory.slice(
-                            -3,
-                        )"
-                        :key="index"
-                        class="p-3 rounded-lg text-sm bg-gray-50 text-gray-700 border border-gray-200 dark:bg-neutral-900 dark:text-gray-200 dark:border-neutral-800"
-                    >
-                        <div class="font-medium text-gray-700 dark:text-gray-100">
-                            {{ interaction.type }}:
-                        </div>
-                        <div class="text-gray-600 dark:text-gray-300 truncate">
-                            {{ interaction.message }}
-                        </div>
-                        <div class="text-xs text-gray-500 dark:text-gray-400">
-                            {{ interaction.timestamp }}
+                <div class="absolute bottom-full right-0 mb-2 p-4 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg shadow-lg backdrop-blur-sm min-w-[300px] max-h-60 overflow-y-auto">
+                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                        Recent Interactions
+                    </h3>
+                    <div class="space-y-2">
+                        <div
+                            v-for="(interaction, index) in interactionHistory.slice(-5)"
+                            :key="index"
+                            class="p-2 rounded text-xs bg-gray-50 text-gray-700 border border-gray-200 dark:bg-neutral-800 dark:text-gray-200 dark:border-neutral-700"
+                        >
+                            <div class="font-medium text-gray-700 dark:text-gray-100">
+                                {{ interaction.type }}:
+                            </div>
+                            <div class="text-gray-600 dark:text-gray-300 truncate">
+                                {{ interaction.message }}
+                            </div>
+                            <div class="text-xs text-gray-500 dark:text-gray-400">
+                                {{ interaction.timestamp }}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </details>
         </div>
     </div>
 </template>
@@ -85,7 +85,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from "vue";
 import ChatInterface from "./components/ChatInterface.vue";
-import BackendTest from "./components/BackendTest.vue";
 
 // Theme state and logic
 const isDark = ref(false);

@@ -1,0 +1,84 @@
+---
+alwaysApply: true
+---
+{
+  "name": "AI Fitness Coach",
+  "description": "Rules for generating code for the AI Fitness Coach project",
+  "rules": {
+    "general": {
+      "project_goal": "Simple, user-friendly AI-powered fitness and nutrition coach app for a 45-year-old beginner.",
+      "persona": {
+        "friendly": true,
+        "simple_language": true,
+        "safety_first": true,
+        "action_oriented": true
+      },
+      "keep_it_simple": true,
+      "avoid_paid_services": true
+    },
+    "backend": {
+      "language": "Python",
+      "framework": "FastAPI",
+      "llm": {
+        "provider": "Google Gemini API",
+        "default_model": "gemini-1.5-flash",
+        "optional_model": "gemini-1.5-pro",
+        "api_key_env": "GEMINI_API_KEY",
+        "client_helper": "services/gemini_client.py",
+        "safety_filter": true
+      },
+      "rag": {
+        "primary": "TF-IDF",
+        "fallback": "sentence-transformers",
+        "local_only": true,
+        "max_chunks_before_db": 5000
+      },
+      "dependencies": "requirements.txt or pyproject.toml",
+      "hosting": ["Fly.io", "Railway"]
+    },
+    "frontend": {
+      "language": "JavaScript",
+      "framework": "Vue 3",
+      "composition_api": true,
+      "build_tool": "Vite",
+      "styling": "TailwindCSS",
+      "api_client": "axios",
+      "hosting": ["Netlify", "Vercel"]
+    },
+    "python_conventions": {
+      "type_hints": true,
+      "pydantic_models": true,
+      "async_only_when_needed": true,
+      "formatting": "PEP8, f-strings",
+      "rag_logic_order": [
+        "receive_user_query",
+        "embed_query_sentence_transformers",
+        "compute_similarity",
+        "select_top_k_chunks",
+        "build_prompt_with_persona_and_context",
+        "call_gemini_and_return_answer"
+      ]
+    },
+    "vue_conventions": {
+      "script_setup": true,
+      "state": {
+        "ref_for_primitives": true,
+        "reactive_for_objects": true
+      },
+      "components_small": true,
+      "tailwind_usage": "direct",
+      "axios_wrapper": true
+    },
+    "avoid": {
+      "complex_jargon": true,
+      "paid_services": true,
+      "overengineering_retrieval": true,
+      "hardcoding_secrets": true
+    },
+    "commit_messages": {
+      "format": "Conventional Commits",
+      "types": ["feat", "fix", "docs", "style", "refactor", "perf", "test", "build", "ci", "chore"],
+      "no_emojis": true
+    }
+  }
+}
