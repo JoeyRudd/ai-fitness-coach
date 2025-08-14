@@ -3,31 +3,22 @@
 Provides a single public function ``generate_response(prompt: str) -> str`` that
 wraps the Google Generative AI (Gemini) SDK while adding:
 
-- Lazy, module‑level singleton style initialization (first call only)
+- Lazy, module-level singleton style initialization (first call only)
 - Model selection via ``GEMINI_MODEL`` env var (default: ``gemini-1.5-flash``)
-- Graceful fallback when ``GEMINI_API_KEY`` is missing or unusable, returning a
-  deterministic string ``"[LLM unavailable: fallback]"`` so callers can rely on
-  consistent behaviour in offline / test environments.
-- Lightweight safety / hygiene layer:
-  * Truncates incoming prompt to a hard limit (6000 characters)
-  * Strips / neutralises a small list of potentially dangerous or prompt‑leaking
-    tokens (markdown fences, HTML script tags, role prefixes, etc.)
-- Defensive exception handling so any SDK error also yields the fallback string
-  rather than propagating.
-
-This module intentionally keeps a minimal surface to simplify testing and
-mocking. For more advanced usage (multi‑turn chats, tool calling, etc.), extend
-or replace this wrapper.
+- Graceful fallback when ``GEMINI_API_KEY`` is missing or unusable
+- Lightweight safety / hygiene layer
+- Defensive exception handling so any SDK error yields a fallback string
 """
-from __future__ import annotations
 
+from __future__ import annotations
 from typing import Final, List, Optional
 import logging
 import os
+import json
 
 try:  # Import guarded so environments without the package still work gracefully.
     import google.generativeai as genai  # type: ignore
-except Exception:  # pragma: no cover - only hit when package is absent.
+except Exception:  # pragma: no cover
     genai = None  # type: ignore
 
 logger = logging.getLogger(__name__)
@@ -47,23 +38,19 @@ _initialized: bool = False
 
 
 def _init_client() -> None:
-    """Initialise the Gemini client lazily.
-
-    If the API key is missing, we mark as initialized but without a model so
-    subsequent calls short‑circuit quickly.
-    """
+    """Initialise the Gemini client lazily."""
     global _model, _model_name, _initialized
     if _initialized:
         return
-    _initialized = True  # Mark early to avoid races / recursion.
+    _initialized = True
 
     api_key = os.getenv("GEMINI_API_KEY", "").strip()
     if not api_key:
-        logger.info("GEMINI_API_KEY missing; Gemini client disabled, using fallback.")
+        logger.info("GEMINI_API_KEY missing; Gemini client disabled.")
         return
 
-    if genai is None:  # Library not present.
-        logger.warning("google-generativeai package not available; using fallback.")
+    if genai is None:
+        logger.warning("google-generativeai package not available.")
         return
 
     try:
@@ -71,16 +58,13 @@ def _init_client() -> None:
         _model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip() or "gemini-1.5-flash"
         _model = genai.GenerativeModel(_model_name)  # type: ignore[attr-defined]
         logger.debug("Gemini model '%s' initialized successfully.", _model_name)
-    except Exception as exc:  # pragma: no cover - network / SDK specific
+    except Exception as exc:
         logger.error("Failed to initialize Gemini client: %s", exc)
         _model = None
 
 
 def _sanitize_prompt(prompt: str) -> str:
-    """Apply simple size + token scrubbing to the prompt.
-
-    This is NOT a comprehensive security filter—just a minimal defensive step.
-    """
+    """Apply size limit + minimal token scrubbing."""
     truncated = prompt[:_MAX_PROMPT_CHARS]
     cleaned = truncated
     for token in _DANGEROUS_TOKENS:
@@ -89,57 +73,61 @@ def _sanitize_prompt(prompt: str) -> str:
 
 
 def generate_response(prompt: str) -> str:
-    """Generate a model response for the provided prompt.
-
-    Behaviour:
-    - Returns a deterministic fallback string when the model / key is
-      unavailable or any exception occurs.
-    - Sanitizes and truncates the prompt prior to sending to the API.
-
-    Parameters
-    ----------
-    prompt: str
-        The raw user prompt / input text.
-
-    Returns
-    -------
-    str
-        Model text output or fallback string.
-    """
+    """Generate a Gemini model response for the provided prompt."""
     if not _initialized:
         _init_client()
-
     if _model is None:
         return _FALLBACK_RESPONSE
 
     safe_prompt = _sanitize_prompt(prompt)
-    if not safe_prompt:
-        return _FALLBACK_RESPONSE
-
     try:
-        # For the flash model, a single-turn generate_content is sufficient.
-        response = _model.generate_content(safe_prompt)  # type: ignore[operator]
-        # The SDK typically exposes .text; fall back to joining candidates if needed.
-        text: Optional[str] = getattr(response, "text", None)
-        if text and text.strip():
-            return text.strip()
-        # Fallback path: attempt to assemble from candidates / parts.
-        candidates = getattr(response, "candidates", None)
-        if candidates:
-            parts: list[str] = []
-            for cand in candidates:  # type: ignore[assignment]
-                content = getattr(cand, "content", None)
-                if content and getattr(content, "parts", None):
-                    for part in content.parts:  # type: ignore[assignment]
-                        part_text = getattr(part, "text", "")
-                        if part_text:
-                            parts.append(part_text)
-            if parts:
-                return "\n".join(p.strip() for p in parts if p.strip())
+        response = _model.generate_content(safe_prompt)
+        if hasattr(response, "text") and response.text:
+            return response.text.strip()
         return _FALLBACK_RESPONSE
-    except Exception as exc:  # pragma: no cover - network / SDK errors
-        logger.error("Gemini generate_content error: %s", exc)
+    except Exception as exc:
+        logger.error("Gemini generation failed: %s", exc)
         return _FALLBACK_RESPONSE
 
 
-__all__ = ["generate_response"]
+def extract_tdee_from_text(user_text: str) -> dict:
+    """
+    Use Gemini to extract TDEE and profile info from user input.
+    Returns a dict with keys: sex, age, weight_kg, height_cm,
+    activity_factor, bmr, tdee, explanation.
+    Missing values are null.
+    """
+    prompt = f"""
+You are a fitness and nutrition assistant. Carefully extract the following from the user's combined chat history:
+- sex (male/female)
+- age (years)
+- weight (kg)
+- height (cm)
+- activity level (choose one: sedentary, light, moderate, very, extra)
+- If the user describes their activity (e.g., 'I exercise 4 times a week', 'I am active', 'I walk daily'), map it to the closest standard level and set the corresponding activity_factor:
+    - sedentary: 1.2
+    - light: 1.375
+    - moderate: 1.55
+    - very: 1.725
+    - extra: 1.9
+Then estimate their TDEE (Total Daily Energy Expenditure) and BMR (Basal Metabolic Rate) using the Mifflin-St Jeor equation and the activity factor.
+Respond ONLY in JSON with these keys: sex, age, weight_kg, height_cm, activity_factor, bmr, tdee, explanation.
+If any value is missing, set it to null.
+Example:
+{{"sex": "male", "age": 30, "weight_kg": 80, "height_cm": 180, "activity_factor": 1.55, "bmr": 1750, "tdee": 2712, "explanation": "..."}}
+
+User chat history: '''{user_text}'''
+"""
+    response = generate_response(prompt)
+    try:
+        start = response.find("{")
+        end = response.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            json_str = response[start:end + 1]
+            return json.loads(json_str)
+    except Exception:
+        pass
+    return {"error": "Could not extract TDEE info from Gemini response.", "raw_response": response}
+
+
+__all__ = ["generate_response", "extract_tdee_from_text"]

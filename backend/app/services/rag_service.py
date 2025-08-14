@@ -136,6 +136,7 @@ class RAGService:
             logger.error(f"Gemini init failed: {e}")
 
     # ================== Public API ==================
+
     def get_ai_response(self, history: List[ChatMessage]) -> HistoryChatResponse:
         # Match original behavior of /chat2 endpoint.
         user_turns = [t for t in history if t.role == 'user']
@@ -146,27 +147,67 @@ class RAGService:
         profile = self._rebuild_profile(history)
         missing = self._profile_missing(profile)
 
+        # Detect intent from last user message
+
+        # Gather all user messages for Gemini context
+        user_history_text = '\n'.join([t.content for t in user_turns])
+
+        if self._is_tdee_intent(last_user):
+            intent = 'tdee'
+        else:
+            intent = 'general'
+
         recall_field = self._detect_recall(last_user)
         if recall_field:
             resp_text = self._handle_recall(recall_field, profile)
 
         if intent == 'tdee':
-            if not missing:
-                bmr,tdee_val = self._compute_tdee(profile['sex'], profile['weight_kg'], profile['height_cm'], profile['age'], profile['activity_factor'])  # type: ignore
+            # Try Gemini-based TDEE extraction first, using all user messages as context
+            gemini_result = None
+            try:
+                from app.services.gemini_client import extract_tdee_from_text
+                gemini_result = extract_tdee_from_text(user_history_text)
+            except Exception as e:
+                logger.warning(f"Gemini TDEE extraction failed: {e}")
+
+            # Merge Gemini result with existing profile
+            merged_profile = dict(profile)
+            if isinstance(gemini_result, dict):
+                for k in ['sex','age','weight_kg','height_cm','activity_factor']:
+                    v = gemini_result.get(k)
+                    if v is not None:
+                        merged_profile[k] = v
+
+            # Check if all required fields are present after merging
+            merged_missing = [k for k in FIELD_ORDER if not merged_profile.get(k)]
+            if not merged_missing:
+                # Use Gemini's TDEE if available, else fallback to manual
+                tdee_val = None
+                bmr_val = None
+                if gemini_result and gemini_result.get('tdee') and gemini_result.get('bmr'):
+                    tdee_val = gemini_result['tdee']
+                    bmr_val = gemini_result['bmr']
+                else:
+                    bmr_val, tdee_val = self._compute_tdee(
+                        merged_profile['sex'], merged_profile['weight_kg'], merged_profile['height_cm'], merged_profile['age'], merged_profile['activity_factor']
+                    )
                 low = int(tdee_val*0.95); high = int(tdee_val*1.05)
-                resp_text = self._format_tdee(profile, bmr, tdee_val)
-                return HistoryChatResponse(response=resp_text, profile=profile, tdee={'bmr': int(bmr), 'tdee': int(tdee_val), 'range': [low, high]}, missing=[], asked_this_intent=[], intent='tdee')
+                resp_text = gemini_result.get('explanation') if gemini_result and gemini_result.get('explanation') else self._format_tdee(merged_profile, bmr_val, tdee_val)
+                tdee_obj = {'bmr': int(bmr_val), 'tdee': int(tdee_val), 'range': [low, high]}
+                return HistoryChatResponse(response=resp_text, profile=merged_profile, tdee=tdee_obj, missing=[], asked_this_intent=[], intent='tdee')
+
+            # If still missing fields, prompt for the next one
             ask_field: Optional[str] = None
             for f in FIELD_ORDER:
-                if f in missing and not self._already_asked(f, history):
+                if f in merged_missing and not self._already_asked(f, history):
                     ask_field = f
                     break
             if ask_field:
                 human = FIELD_HUMAN[ask_field]
                 resp_text = f"Can you tell me your {human}?" if ask_field != 'activity_factor' else "What is your activity level? (sedentary, light, moderate, very, extra)"
-                return HistoryChatResponse(response=resp_text, profile=profile, tdee=None, missing=missing, asked_this_intent=[ask_field], intent='tdee')
+                return HistoryChatResponse(response=resp_text, profile=merged_profile, tdee=None, missing=merged_missing, asked_this_intent=[ask_field], intent='tdee')
             resp_text = "I can still guide you. Start with 2 easy full body days and a short daily walk. Share missing info later for numbers."
-            return HistoryChatResponse(response=resp_text, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent='tdee')
+            return HistoryChatResponse(response=resp_text, profile=merged_profile, tdee=None, missing=merged_missing, asked_this_intent=[], intent='tdee')
 
         # ---- General intent path w/ RAG grounding ----
         retrieved: List[Dict[str, str]] = []
