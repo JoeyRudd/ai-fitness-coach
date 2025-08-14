@@ -2,31 +2,31 @@
     <div class="min-h-screen bg-gray-50 dark:bg-neutral-950 transition-colors duration-300">
         <!-- Theme Toggle (top-right) -->
         <button
-            class="fixed top-4 right-4 z-50 inline-flex items-center gap-2 rounded-full border border-gray-200/70 bg-white/80 px-4 py-2 shadow-lg backdrop-blur-sm hover:bg-white dark:border-neutral-800 dark:bg-neutral-900/80 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-200 transition-colors"
+            class="fixed top-3 sm:top-4 right-3 sm:right-4 z-50 inline-flex items-center gap-1.5 sm:gap-2 rounded-full border border-gray-200/70 bg-white/80 px-3 sm:px-4 py-2 shadow-lg backdrop-blur-sm hover:bg-white dark:border-neutral-800 dark:bg-neutral-900/80 dark:hover:bg-neutral-900 text-gray-700 dark:text-gray-200 transition-colors min-h-[40px] sm:min-h-[44px]"
             @click="toggleTheme"
             aria-label="Toggle color scheme"
         >
             <span class="sr-only">Toggle Theme</span>
-            <svg v-if="!isDark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
-                <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm0 4a1 1 0 0 1-1-1v-1.2a1 1 0 1 1 2 0V21a1 1 0 0 1-1 1Zm0-19a1 1 0 0 1 1-1h.2a1 1 0 1 1 0 2H13a1 1 0 0 1-1-1ZM4.222 5.636a1 1 0 0 1 1.414-1.414l.848.848a1 1 0 1 1-1.414 1.414l-.848-.848Zm12.254 12.254a1 1 0 0 1 1.414 0l.848.848a1 1 0 0 1-1.414 1.414l-.848-.848a1 1 0 0 1 0-1.414ZM1 13a1 1 0 1 1 0-2h1.2a1 1 0 1 1 0 2H1Zm19.8 0a1 1 0 1 1 0-2H22a1 1 0 1 1 0 2h-1.2ZM4.222 18.364l.848-.848a1 1 0 1 1 1.414 1.414l-.848.848a1 1 0 1 1-1.414-1.414ZM17.486 5.636a1 1 0 1 1 1.414-1.414l.848.848a1 1 0 0 1-1.414 1.414l-.848-.848Z"/>
+            <svg v-if="!isDark" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4 sm:h-5 sm:w-5">
+                <path d="M12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12Zm0 4a1 1 0 0 1-1-1v-1.2a1 1 0 1 1 2 0V21a1 1 0 0 1-1 1Zm0-19a1 1 0 0 1 1-1h.2a1 1 0 1 1 0 2H13a1 1 0 0 1-1-1ZM4.222 5.636a1 1 0 0 1 1.414-1.414l.848.848a1 1 0 1 1-1.414 1.414l-.848-.848Zm12.254 12.254a1 1 0 0 1 1.414 0l.848.848a1 1 0 0 1-1.414 1.414l-.848-.848a1 1 0 0 1 0-1.414ZM1 13a1 1 0 1 1 0-2h1.2a1 1 0 1 1 0 2H1Zm19.8 0a1 1 0 1 1 0-2H22a1 1 0 1 1 0 2h-1.2ZM4.222 18.364l.848-.848a1 1 0 1 1 1.414 1.414l-.848.848a1 1 0 1 1-1.414-1.414ZM17.486 5.636a1 1 0 0 1 1.414-1.414l.848.848a1 1 0 0 1-1.414 1.414l-.848-.848Z"/>
             </svg>
-            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-5 w-5">
+            <svg v-else xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="h-4 w-4 sm:h-5 sm:w-5">
                 <path d="M21.752 15.002A9.718 9.718 0 0 1 12.002 22C6.476 22 2 17.523 2 11.998 2 7.748 4.468 4.06 8.12 2.377a1 1 0 0 1 1.33 1.33A8.002 8.002 0 0 0 20 12.002a7.96 7.96 0 0 1-1.54 4.608 1 1 0 0 1-1.708-.608Z"/>
             </svg>
-            <span class="text-sm font-medium">{{ isDark ? 'Dark' : 'Light' }}</span>
+            <span class="text-xs sm:text-sm font-medium">{{ isDark ? 'Dark' : 'Light' }}</span>
         </button>
 
         <!-- Header -->
         <div class="w-full bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm border-b border-gray-200 dark:border-neutral-800">
-            <div class="w-full px-6 py-4">
-                <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">
+            <div class="w-full px-4 sm:px-6 py-3 sm:py-4">
+                <h1 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
                     AI Fitness Coach
                 </h1>
             </div>
         </div>
 
         <!-- Main Chat Interface - Full Width -->
-        <div class="flex-1 flex flex-col h-[calc(100vh-120px)]">
+        <div class="flex-1 flex flex-col h-[calc(100vh-100px)] sm:h-[calc(100vh-120px)]">
             <ChatInterface
                 input-label="Ask your fitness question:"
                 placeholder="e.g., Create a workout plan for beginners, help me plan my meals, or ask about exercises..."
@@ -41,29 +41,29 @@
         <!-- Connection Status - Fixed at bottom above input -->
         <div
             v-if="connectionStatus"
-            class="fixed bottom-24 left-1/2 transform -translate-x-1/2 z-40 px-4 py-2 rounded-lg text-sm border shadow-lg"
+            class="fixed bottom-20 sm:bottom-24 left-1/2 transform -translate-x-1/2 z-40 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm border shadow-lg max-w-[90vw] text-center"
             :class="connectionStatusClass"
         >
             {{ connectionStatus }}
         </div>
 
         <!-- Interaction History - Collapsible sidebar or modal -->
-        <div v-if="interactionHistory.length > 0" class="fixed bottom-4 right-4 z-30">
-            <details class="text-sm">
+        <div v-if="interactionHistory.length > 0" class="fixed bottom-3 sm:bottom-4 right-3 sm:right-4 z-30">
+            <details class="text-xs sm:text-sm">
                 <summary
-                    class="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-white/80 dark:bg-neutral-900/80 px-3 py-2 rounded-lg border border-gray-200 dark:border-neutral-800 backdrop-blur-sm"
+                    class="cursor-pointer text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 bg-white/80 dark:bg-neutral-900/80 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-lg border border-gray-200 dark:border-neutral-800 backdrop-blur-sm min-h-[32px] sm:min-h-[36px] flex items-center"
                 >
                     Recent ({{ interactionHistory.length }})
                 </summary>
-                <div class="absolute bottom-full right-0 mb-2 p-4 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg shadow-lg backdrop-blur-sm min-w-[300px] max-h-60 overflow-y-auto">
-                    <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-200 mb-3">
+                <div class="absolute bottom-full right-0 mb-2 p-3 sm:p-4 bg-white dark:bg-neutral-900 border border-gray-200 dark:border-neutral-800 rounded-lg shadow-lg backdrop-blur-sm w-[280px] sm:min-w-[300px] max-h-60 overflow-y-auto">
+                    <h3 class="text-xs sm:text-sm font-semibold text-gray-700 dark:text-gray-200 mb-2 sm:mb-3">
                         Recent Interactions
                     </h3>
-                    <div class="space-y-2">
+                    <div class="space-y-1.5 sm:space-y-2">
                         <div
                             v-for="(interaction, index) in interactionHistory.slice(-5)"
                             :key="index"
-                            class="p-2 rounded text-xs bg-gray-50 text-gray-700 border border-gray-200 dark:bg-neutral-800 dark:text-gray-200 dark:border-neutral-700"
+                            class="p-1.5 sm:p-2 rounded text-xs bg-gray-50 text-gray-700 border border-gray-200 dark:bg-neutral-800 dark:text-gray-200 dark:border-neutral-700"
                         >
                             <div class="font-medium text-gray-700 dark:text-gray-100">
                                 {{ interaction.type }}:

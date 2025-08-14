@@ -1,42 +1,42 @@
 <template>
   <div class="flex flex-col h-full w-full">
     <!-- Chat History - Takes up most of the screen -->
-    <div class="flex-1 overflow-y-auto px-6 py-6">
+    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6">
       <!-- Welcome Message -->
-      <div v-if="history.length === 1" class="text-center py-12">
-        <div class="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+      <div v-if="history.length === 1" class="text-center py-8 sm:py-12">
+        <div class="text-2xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-3 sm:mb-4">
           AI Fitness Coach
         </div>
-        <div class="text-lg text-gray-600 dark:text-gray-400 w-full max-w-4xl mx-auto">
+        <div class="text-base sm:text-lg text-gray-600 dark:text-gray-400 w-full max-w-4xl mx-auto px-2">
           {{ history[0].content }}
         </div>
       </div>
 
       <!-- Chat Messages -->
-      <div v-else class="space-y-6">
+      <div v-else class="space-y-4 sm:space-y-6">
         <div v-for="(turn, idx) in history.slice(1)" :key="idx" class="flex w-full">
           <!-- User message -->
           <div
             v-if="turn.role === 'user'"
-            class="ml-auto w-full max-w-[90%]"
+            class="ml-auto w-full max-w-[95%] sm:max-w-[90%]"
           >
-            <div class="bg-blue-600 text-white rounded-2xl px-4 py-3 whitespace-pre-wrap shadow-sm">
+            <div class="bg-blue-600 text-white rounded-2xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap shadow-sm text-sm sm:text-base">
               {{ turn.content }}
             </div>
           </div>
           <!-- Assistant message -->
           <div
             v-else-if="turn.role === 'assistant'"
-            class="mr-auto w-full max-w-[90%]"
+            class="mr-auto w-full max-w-[95%] sm:max-w-[90%]"
           >
-            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-4 py-3 rounded-2xl whitespace-pre-wrap shadow-sm">
+            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 sm:px-4 sm:py-3 rounded-2xl whitespace-pre-wrap shadow-sm text-sm sm:text-base">
               {{ turn.content }}
             </div>
           </div>
           <!-- System message -->
           <div
             v-else
-            class="w-full text-center text-sm italic text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-neutral-900/50 rounded-lg px-4 py-2"
+            class="w-full text-center text-xs sm:text-sm italic text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-neutral-900/50 rounded-lg px-3 py-2 mx-2"
           >
             {{ turn.content }}
           </div>
@@ -44,8 +44,8 @@
 
         <!-- Loading indicator -->
         <div v-if="loading" class="flex w-full">
-          <div class="mr-auto w-full max-w-[90%]">
-            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-4 py-3 rounded-2xl shadow-sm flex items-center space-x-2">
+          <div class="mr-auto w-full max-w-[95%] sm:max-w-[90%]">
+            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-3 py-2.5 sm:px-4 sm:py-3 rounded-2xl shadow-sm flex items-center space-x-2 text-sm sm:text-base">
               <div class="flex space-x-1">
                 <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
                 <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay:0.1s"></span>
@@ -58,10 +58,10 @@
       </div>
 
       <!-- TDEE Panel -->
-      <div v-if="tdeeData" class="mt-6 w-full">
-        <div class="p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 border border-blue-200/60 dark:border-blue-800/40 text-sm text-blue-900 dark:text-blue-200 max-w-4xl mx-auto">
+      <div v-if="tdeeData" class="mt-4 sm:mt-6 w-full px-2">
+        <div class="p-3 sm:p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 border border-blue-200/60 dark:border-blue-800/40 text-xs sm:text-sm text-blue-900 dark:text-blue-200 max-w-4xl mx-auto">
           <div class="font-semibold mb-2">Caloric Estimates</div>
-          <div class="flex flex-wrap gap-4">
+          <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4">
             <div>BMR: <span class="font-medium">{{ tdeeData.bmr.toFixed(0) }}</span></div>
             <div>TDEE: <span class="font-medium">{{ tdeeData.tdee.toFixed(0) }}</span></div>
             <div>Range: <span class="font-medium">{{ tdeeData.range[0].toFixed(0) }} - {{ tdeeData.range[1].toFixed(0) }}</span></div>
@@ -70,14 +70,14 @@
       </div>
 
       <!-- Profile Chips & Missing Info Notices -->
-      <div v-if="showProfileBar" class="mt-6 w-full">
+      <div v-if="showProfileBar" class="mt-4 sm:mt-6 w-full px-2">
         <div class="max-w-4xl mx-auto">
-          <div class="flex flex-wrap gap-2 mb-2">
-            <span v-if="profile.sex" class="chip">Sex: {{ profile.sex }}</span>
-            <span v-if="profile.age !== null" class="chip">Age: {{ profile.age }}</span>
-            <span v-if="profile.weight_kg !== null" :class="weightChipClass">Weight: {{ formattedWeight }}</span>
-            <span v-if="profile.height_cm !== null" :class="heightChipClass">Height: {{ formattedHeight }}</span>
-            <span v-if="profile.activity_factor !== null" :class="activityChipClass">Activity: {{ activityName }}</span>
+          <div class="flex flex-wrap gap-1.5 sm:gap-2 mb-2">
+            <span v-if="profile.sex" class="chip text-xs">Sex: {{ profile.sex }}</span>
+            <span v-if="profile.age !== null" class="chip text-xs">Age: {{ profile.age }}</span>
+            <span v-if="profile.weight_kg !== null" :class="weightChipClass + ' text-xs'">Weight: {{ formattedWeight }}</span>
+            <span v-if="profile.height_cm !== null" :class="heightChipClass + ' text-xs'">Height: {{ formattedHeight }}</span>
+            <span v-if="profile.activity_factor !== null" :class="activityChipClass + ' text-xs'">Activity: {{ activityName }}</span>
           </div>
           <div v-if="tdeeIntentNeedsFields" class="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 rounded-lg">
             Need: {{ missing.join(', ') }}
@@ -91,7 +91,7 @@
 
     <!-- Input Section - Fixed at bottom -->
     <div class="border-t border-gray-200 dark:border-neutral-800 bg-white/80 dark:bg-neutral-900/80 backdrop-blur-sm">
-      <div class="w-full px-6 py-4">
+      <div class="w-full px-3 sm:px-6 py-3 sm:py-4">
         <div class="relative">
           <textarea
             id="user-input"
@@ -99,7 +99,7 @@
             :placeholder="placeholder"
             :rows="textareaRows"
             :maxlength="maxLength"
-            class="w-full px-4 py-3 pr-12 border border-gray-300 dark:border-neutral-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 resize-none transition-all duration-200 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100"
+            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 pr-12 border border-gray-300 dark:border-neutral-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 resize-none transition-all duration-200 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
             :disabled="loading"
             @keydown.enter.prevent="handleEnter"
             @keydown.ctrl.enter.prevent="sendMessage"
@@ -107,7 +107,7 @@
           ></textarea>
           
           <!-- Character counter -->
-          <div class="absolute bottom-3 right-3 text-xs text-gray-400 dark:text-gray-500" v-if="maxLength">
+          <div class="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 text-xs text-gray-400 dark:text-gray-500" v-if="maxLength">
             {{ userInput.length }}/{{ maxLength }}
           </div>
         </div>
@@ -117,7 +117,7 @@
           <button
             @click="sendMessage"
             :disabled="loading || !userInput.trim() || (!!maxLength && userInput.length > maxLength)"
-            class="px-6 py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md"
+            class="px-4 py-2.5 sm:px-6 sm:py-2 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md text-sm sm:text-base min-h-[44px] sm:min-h-[40px]"
           >
             <span v-if="!loading">{{ sendButtonText }}</span>
             <span v-else class="flex items-center">
