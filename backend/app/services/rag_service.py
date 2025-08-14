@@ -138,13 +138,41 @@ class RAGService:
     # ================== Public API ==================
 
     def get_ai_response(self, history: List[ChatMessage]) -> HistoryChatResponse:
+        profile = self._rebuild_profile(history)
+        user_turns = [t for t in history if t.role == 'user']
+        # Only intercept protein questions if there is at least one user message
+        if user_turns:
+            last_user = user_turns[-1].content
+            last_user_lower = last_user.lower()
+            protein_patterns = [
+                "how much protein",
+                "protein should i eat",
+                "protein do i need",
+                "protein goal",
+                "protein intake",
+                "protein per day"
+            ]
+            if any(p in last_user_lower for p in protein_patterns):
+                weight_kg = profile.get('weight_kg')
+                if weight_kg:
+                    weight_lb = round(weight_kg / 0.4536)
+                    min_protein = int(weight_lb * 0.8)
+                    max_protein = int(weight_lb * 1.0)
+                    resp = (
+                        f"A good target is 0.8–1 gram of protein per pound of body weight per day. "
+                        f"For your weight ({weight_lb} lbs), that's about {min_protein}–{max_protein} grams of protein daily. "
+                        f"Focus on simple, lean sources like chicken, fish, eggs, beans, or Greek yogurt."
+                    )
+                    return HistoryChatResponse(response=resp, profile=profile, tdee=None, missing=[], asked_this_intent=[], intent='protein')
+                # If weight is missing, fall through to normal logic (Gemini will be prompted)
+        else:
+            last_user = ""
         # Match original behavior of /chat2 endpoint.
         user_turns = [t for t in history if t.role == 'user']
         empty_profile_dict = {'sex': None,'age': None,'weight_kg': None,'height_cm': None,'activity_factor': None}
         if not user_turns:
             return HistoryChatResponse(response="Please send a message.", profile=empty_profile_dict, tdee=None, missing=FIELD_ORDER, asked_this_intent=[], intent='none')
         last_user = user_turns[-1].content
-        profile = self._rebuild_profile(history)
         missing = self._profile_missing(profile)
 
         # Detect intent from last user message
@@ -178,10 +206,13 @@ class RAGService:
                     if v is not None:
                         merged_profile[k] = v
 
-            # Check if all required fields are present after merging
-            merged_missing = [k for k in FIELD_ORDER if not merged_profile.get(k)]
-            if not merged_missing:
-                # Use Gemini's TDEE if available, else fallback to manual
+            # Only require truly essential fields for TDEE calculation
+            essentials = ['sex','age','weight_kg','height_cm','activity_factor']
+            merged_missing = [k for k in essentials if not merged_profile.get(k)]
+
+            # If enough info, always provide a best-effort estimate
+            enough_info = all(merged_profile.get(k) for k in ['sex','age','weight_kg','height_cm','activity_factor'])
+            if enough_info:
                 tdee_val = None
                 bmr_val = None
                 if gemini_result and gemini_result.get('tdee') and gemini_result.get('bmr'):
@@ -192,13 +223,36 @@ class RAGService:
                         merged_profile['sex'], merged_profile['weight_kg'], merged_profile['height_cm'], merged_profile['age'], merged_profile['activity_factor']
                     )
                 low = int(tdee_val*0.95); high = int(tdee_val*1.05)
-                resp_text = gemini_result.get('explanation') if gemini_result and gemini_result.get('explanation') else self._format_tdee(merged_profile, bmr_val, tdee_val)
+                # Detect user goal for calorie adjustment
+                goal = 'maintain'
+                last_user_lower = last_user.lower()
+                if any(word in last_user_lower for word in ["cut", "lose weight", "losing weight", "fat loss", "weight loss", "deficit"]):
+                    goal = 'cut'
+                elif any(word in last_user_lower for word in ["bulk", "gain weight", "gaining weight", "surplus"]):
+                    goal = 'bulk'
+                # Calculate calorie targets
+                if goal == 'cut':
+                    cut_low = max(1200, int(tdee_val - 500))
+                    cut_high = int(tdee_val - 300)
+                    resp_text = (
+                        f"For weight loss, a safe calorie target is about {cut_low}-{cut_high} calories per day (300-500 below your TDEE of {int(tdee_val)}). "
+                        f"This should help you lose about 1 pound per week. Don't go below 1200 calories without medical supervision."
+                    )
+                elif goal == 'bulk':
+                    bulk_low = int(tdee_val + 200)
+                    bulk_high = int(tdee_val + 400)
+                    resp_text = (
+                        f"For gaining weight, a good calorie target is about {bulk_low}-{bulk_high} calories per day (200-400 above your TDEE of {int(tdee_val)}). "
+                        f"This should help you gain weight at a safe pace."
+                    )
+                else:
+                    resp_text = self._format_tdee(merged_profile, bmr_val, tdee_val)
                 tdee_obj = {'bmr': int(bmr_val), 'tdee': int(tdee_val), 'range': [low, high]}
                 return HistoryChatResponse(response=resp_text, profile=merged_profile, tdee=tdee_obj, missing=[], asked_this_intent=[], intent='tdee')
 
-            # If still missing fields, prompt for the next one
+            # If not enough info, only ask for the first missing essential that hasn't already been provided
             ask_field: Optional[str] = None
-            for f in FIELD_ORDER:
+            for f in essentials:
                 if f in merged_missing and not self._already_asked(f, history):
                     ask_field = f
                     break
@@ -206,6 +260,7 @@ class RAGService:
                 human = FIELD_HUMAN[ask_field]
                 resp_text = f"Can you tell me your {human}?" if ask_field != 'activity_factor' else "What is your activity level? (sedentary, light, moderate, very, extra)"
                 return HistoryChatResponse(response=resp_text, profile=merged_profile, tdee=None, missing=merged_missing, asked_this_intent=[ask_field], intent='tdee')
+            # If user has already been asked for all essentials, give general advice
             resp_text = "I can still guide you. Start with 2 easy full body days and a short daily walk. Share missing info later for numbers."
             return HistoryChatResponse(response=resp_text, profile=merged_profile, tdee=None, missing=merged_missing, asked_this_intent=[], intent='tdee')
 
@@ -278,8 +333,21 @@ class RAGService:
                     out['age'] = age
             except Exception:  # noqa: BLE001
                 pass
+        # Robust weight extraction: match 'I weigh 150 pounds', 'my weight is 150 lbs', 'weighing 150 pounds', 'weight: 150 lbs', etc.
         w = RE_WEIGHT.search(lower)
-        if w:
+        if not w:
+            import re
+            weight_patterns = [
+                r"(?:i weigh|i am weighing|my weight is|my current weight is|current weight is|weight is|weight:|weighing|weight=)\s*(\d{2,3})\s*(kg|kilograms|lbs|lb|pounds?)",
+                r"(\d{2,3})\s*(kg|kilograms|lbs|lb|pounds?)\s*(is my weight|weight)"
+            ]
+            for pat in weight_patterns:
+                alt_weight = re.search(pat, lower)
+                if alt_weight:
+                    val = float(alt_weight.group(1)); unit = alt_weight.group(2).lower()
+                    out['weight_kg'] = val if 'kg' in unit else val * 0.4536
+                    break
+        else:
             try:
                 val = float(w.group(1)); unit = w.group(2).lower()
                 out['weight_kg'] = val if 'kg' in unit else val * 0.4536
@@ -331,9 +399,11 @@ class RAGService:
             if turn.role != 'user':
                 continue
             facts = self._parse_profile_facts(turn.content)
-            for k,v in facts.items():
+            for k, v in facts.items():
+                # Only update if v is not None
                 if v is not None:
                     profile[k] = v
+                # If v is None, keep previous value (do not overwrite)
         return profile
 
     def _profile_missing(self, profile: Dict[str, Optional[Any]]) -> List[str]:
@@ -403,24 +473,34 @@ class RAGService:
         return ', '.join(parts) if parts else 'none'
 
     def _build_prompt(self, history: List[ChatMessage], profile: Dict[str, Optional[float]], intent: str, missing: List[str]) -> str:
-        MAX_CHARS = 4000
-        trimmed: List[ChatMessage] = []
-        total = 0
-        for turn in reversed(history):
-            c = len(turn.content)
-            if total + c > MAX_CHARS:
-                break
-            trimmed.append(turn)
-            total += c
-        trimmed.reverse()
+        # --- Conversation memory: include latest N turns, summarize older if needed ---
+        MAX_TURNS = 12  # Number of most recent turns to include in full
+        if len(history) > MAX_TURNS:
+            # Summarize older turns
+            summary = self._summarize_history(history[:-MAX_TURNS])
+            trimmed = history[-MAX_TURNS:]
+        else:
+            summary = None
+            trimmed = history
+        # Add explicit user profile and instruction to not re-ask for known info
+        user_profile_lines = [
+            "User Profile:",
+            f"  Sex: {profile.get('sex') if profile.get('sex') else 'unknown'}",
+            f"  Age: {int(profile['age']) if profile.get('age') else 'unknown'}",
+            f"  Weight (kg): {round(profile['weight_kg'],1) if profile.get('weight_kg') else 'unknown'}",
+            f"  Height (cm): {int(profile['height_cm']) if profile.get('height_cm') else 'unknown'}",
+            f"  Activity Level: {profile.get('activity_factor') if profile.get('activity_factor') else 'unknown'}"
+        ]
         system_lines = [
             APP_PERSONA,
-            "Rules: Ask for only one missing data item when user wants calories. If already asked and still missing, give general starter advice without repeating. Keep it natural and concise; avoid filler like ‘That’s a great question’."
+            "Rules: Ask for only one missing data item when user wants calories. If already asked and still missing, give general starter advice without repeating. Keep it natural and concise; avoid filler like ‘That’s a great question’.",
+            "Do not ask for information that is already provided in the user profile below. If a value is present, use it directly.",
+            *user_profile_lines
         ]
-        if intent == 'tdee':
-            system_lines.append(f"Known profile: {self._format_known(profile)}")
-            if missing:
-                system_lines.append(f"Missing (internal): {','.join(missing)}")
+        if summary:
+            system_lines.append(f"Summary of earlier conversation: {summary}")
+        if intent == 'tdee' and missing:
+            system_lines.append(f"Missing (internal): {','.join(missing)}")
         convo_lines = []
         for t in trimmed:
             if t.role == 'system':
@@ -436,6 +516,23 @@ class RAGService:
         ])
         return prompt
 
+    def _summarize_history(self, history: List[ChatMessage]) -> str:
+        """
+        Summarize older conversation history into a short, factual summary for prompt context.
+        Only user and assistant turns are included. This is a simple extractive summary.
+        """
+        facts = []
+        for t in history:
+            if t.role == 'user':
+                facts.append(f"User: {t.content}")
+            elif t.role == 'assistant':
+                facts.append(f"Coach: {t.content}")
+        # Limit summary length
+        summary = ' | '.join(facts)
+        if len(summary) > 400:
+            summary = summary[:400] + '...'
+        return summary
+
     def _build_prompt_general(self, user_message: str, retrieved: List[str]) -> str:
         context_block = ""
         if retrieved:
@@ -447,9 +544,25 @@ class RAGService:
                 safe_chunks.append(c_trim)
             if safe_chunks:
                 context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + "\nOnly use this info if helpful. If unsure, be transparent and ask a brief follow‑up."
+        # Always include user profile for general advice
+        profile = getattr(self, 'last_profile', None)
+        user_profile_lines = []
+        if profile:
+            user_profile_lines = [
+                "User Profile:",
+                f"  Sex: {profile.get('sex') if profile.get('sex') else 'unknown'}",
+                f"  Age: {int(profile['age']) if profile.get('age') else 'unknown'}",
+                f"  Weight (kg): {round(profile['weight_kg'],1) if profile.get('weight_kg') else 'unknown'}",
+                f"  Height (cm): {int(profile['height_cm']) if profile.get('height_cm') else 'unknown'}",
+                f"  Activity Level: {profile.get('activity_factor') if profile.get('activity_factor') else 'unknown'}"
+            ]
+        else:
+            user_profile_lines = ["User Profile: unknown"]
         safety_flag = "yes" if self._is_safety_topic(user_message) else "no"
         prompt = (
             f"Persona: {APP_PERSONA}\n"
+            f"{'\n'.join(user_profile_lines)}\n"
+            f"Use the user profile above for any calculations or advice. Do not ask for information that is already present.\n"
             f"{context_block}\n"
             f"Instructions: {ANTI_HALLUCINATION_RULES} Use contractions. Be warm and conversational. Avoid filler like ‘That’s a great question’ or ‘As an AI’. "
             f"Avoid cliché safety lines like ‘listen to your body’ or ‘if you feel pain, stop’ unless the user asks about safety, pain, injury, form, or medical care.\n"
