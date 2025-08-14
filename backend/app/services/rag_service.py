@@ -115,6 +115,9 @@ class RAGService:
             logger.info("Using knowledge base path: %s", kb_path)
             self._rag_index.load(kb_path)
             logger.info("RAG knowledge base loaded for prompt grounding: %d docs", len(getattr(self._rag_index, '_docs', [])))
+            # Eagerly build the index on startup
+            if self._rag_index and self._rag_index._docs:
+                self._rag_index.build()
         except Exception as e:  # noqa: BLE001
             logger.warning("Failed to init RAG index (likely missing ML deps): %s", e)
             self._rag_index = None
@@ -146,9 +149,6 @@ class RAGService:
         recall_field = self._detect_recall(last_user)
         if recall_field:
             resp_text = self._handle_recall(recall_field, profile)
-            return HistoryChatResponse(response=resp_text, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent='recall')
-
-        intent = 'tdee' if (self._is_tdee_intent(last_user) or self._unresolved_tdee(history)) else 'general'
 
         if intent == 'tdee':
             if not missing:
