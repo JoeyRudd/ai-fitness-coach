@@ -593,7 +593,7 @@ class RAGService:
             return "I do not have that yet."
         if field == 'height_cm':
             cm = round(val); total_inches = val/2.54; ft = int(total_inches//12); inc = int(round(total_inches%12))
-            return f"You told me your height is about {cm} cm (~{ft}' {inc}\")."
+            return f"You told me your height is about {cm} cm (~{ft}' {inc}\")"
         if field == 'weight_kg':
             kg = round(val,1); lbs = round(kg/0.4536)
             return f"Your weight saved is about {kg} kg (~{lbs} lb)."
