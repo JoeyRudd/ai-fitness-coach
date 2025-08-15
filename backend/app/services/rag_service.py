@@ -180,7 +180,10 @@ class RAGService:
         # Gather all user messages for Gemini context
         user_history_text = '\n'.join([t.content for t in user_turns])
 
+        # Check if this is a TDEE intent or if we're continuing a TDEE conversation
         if self._is_tdee_intent(last_user):
+            intent = 'tdee'
+        elif self._unresolved_tdee(history):
             intent = 'tdee'
         else:
             intent = 'general'
@@ -188,6 +191,7 @@ class RAGService:
         recall_field = self._detect_recall(last_user)
         if recall_field:
             resp_text = self._handle_recall(recall_field, profile)
+            return HistoryChatResponse(response=resp_text, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent='recall')
 
         if intent == 'tdee':
             # Try Gemini-based TDEE extraction first, using all user messages as context
@@ -286,10 +290,10 @@ class RAGService:
 
         # Deterministic fallback path when no model configured
         if intent != 'tdee' and not self._model:
-            fallback = self._fallback_general(last_user, retrieved_strings, profile)
+            fallback = self._fallback_general(last_user, retrieved_strings, profile, history)
             return HistoryChatResponse(response=fallback, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
 
-        prompt = self._build_prompt_general(last_user, retrieved_strings)
+        prompt = self._build_prompt_general(last_user, retrieved_strings, history)
         model_reply = self._generate_response(prompt)
         # Strip cliché safety lines unless the user asked about safety/pain
         if intent == 'general':
@@ -497,6 +501,29 @@ class RAGService:
             "Do not ask for information that is already provided in the user profile below. If a value is present, use it directly.",
             *user_profile_lines
         ]
+        
+        # Extract conversation context to avoid asking for information already provided
+        conversation_context = ""
+        if history:
+            context = self._extract_conversation_context(history)
+            context_lines = []
+            
+            if context['fitness_level']:
+                context_lines.append(f"Fitness Level: {context['fitness_level']}")
+            if context['goals']:
+                context_lines.append(f"Goals: {', '.join(context['goals'])}")
+            if context['preferred_activities']:
+                context_lines.append(f"Training Focus: {', '.join(context['preferred_activities'])}")
+            if context['access_equipment']:
+                context_lines.append(f"Equipment: {', '.join(context['access_equipment'])}")
+            
+            if context_lines:
+                conversation_context = " | ".join(context_lines)
+        
+        if conversation_context:
+            system_lines.append(f"Conversation Context: {conversation_context}")
+            system_lines.append("IMPORTANT: Do NOT ask for information that is already provided above. Use what you know about the user to give specific, personalized advice. DO NOT ask follow-up questions unless absolutely necessary for safety reasons. Instead, provide actionable advice based on the information available.")
+        
         if summary:
             system_lines.append(f"Summary of earlier conversation: {summary}")
         if intent == 'tdee' and missing:
@@ -533,7 +560,82 @@ class RAGService:
             summary = summary[:400] + '...'
         return summary
 
-    def _build_prompt_general(self, user_message: str, retrieved: List[str]) -> str:
+    def _extract_conversation_context(self, history: List[ChatMessage]) -> Dict[str, Any]:
+        """Extract user preferences, goals, and context from conversation history."""
+        context = {
+            'fitness_level': None,
+            'goals': [],
+            'preferred_activities': [],
+            'access_equipment': [],
+            'time_availability': None,
+            'experience_level': None
+        }
+        
+        # Keywords to look for in user messages
+        fitness_level_keywords = {
+            'beginner': ['beginner', 'new', 'starting', 'first time', 'never worked out', 'just starting'],
+            'intermediate': ['intermediate', 'some experience', 'worked out before', 'moderate'],
+            'advanced': ['advanced', 'experienced', 'been working out', 'years of experience']
+        }
+        
+        goal_keywords = {
+            'muscle_building': ['muscle', 'build muscle', 'strength', 'get stronger', 'hypertrophy', 'gain muscle', 'muscle growth'],
+            'weight_loss': ['lose weight', 'fat loss', 'slim down', 'burn fat', 'cut', 'deficit'],
+            'maintenance': ['maintain', 'maintenance', 'stay the same', 'keep current'],
+            'performance': ['performance', 'get better', 'improve', 'progress']
+        }
+        
+        activity_keywords = {
+            'strength_training': ['strength training', 'weights', 'lifting', 'gym', 'resistance', 'bench press', 'squats', 'deadlift', 'overhead press'],
+            'cardio': ['cardio', 'running', 'walking', 'cycling', 'swimming', 'jogging', 'treadmill', 'elliptical', 'rowing'],
+            'nutrition': ['nutrition', 'diet', 'eating', 'food', 'protein', 'carbs', 'calories', 'meal plan', 'supplements']
+        }
+        
+        equipment_keywords = {
+            'gym': ['gym', 'fitness center', 'equipment', 'machines', 'barbell', 'dumbbells', 'cable machine', 'smith machine'],
+            'home': ['home', 'at home', 'dumbbells', 'resistance bands', 'kettlebell', 'bench'],
+            'minimal': ['minimal equipment', 'no equipment', 'bodyweight only', 'just bodyweight']
+        }
+        
+        # Scan through user messages to build context
+        for msg in history:
+            if msg.role != 'user':
+                continue
+                
+            content_lower = msg.content.lower()
+            
+            # Check fitness level
+            for level, keywords in fitness_level_keywords.items():
+                if any(k in content_lower for k in keywords):
+                    context['fitness_level'] = level
+                    context['experience_level'] = level
+                    logger.debug("Detected fitness level: %s from message: %s", level, msg.content[:100])
+            
+            # Check goals
+            for goal, keywords in goal_keywords.items():
+                if any(k in content_lower for k in keywords):
+                    if goal not in context['goals']:
+                        context['goals'].append(goal)
+                        logger.debug("Detected goal: %s from message: %s", goal, msg.content[:100])
+            
+            # Check preferred activities
+            for activity, keywords in activity_keywords.items():
+                if any(k in content_lower for k in keywords):
+                    if activity not in context['preferred_activities']:
+                        context['preferred_activities'].append(activity)
+                        logger.debug("Detected activity: %s from message: %s", activity, msg.content[:100])
+            
+            # Check equipment access
+            for equipment, keywords in equipment_keywords.items():
+                if any(k in content_lower for k in keywords):
+                    if equipment not in context['access_equipment']:
+                        context['access_equipment'].append(equipment)
+                        logger.debug("Detected equipment: %s from message: %s", equipment, msg.content[:100])
+        
+        logger.info("Final extracted context: %s", context)
+        return context
+
+    def _build_prompt_general(self, user_message: str, retrieved: List[str], history: List[ChatMessage] = None) -> str:
         context_block = ""
         if retrieved:
             safe_chunks = []
@@ -558,12 +660,36 @@ class RAGService:
             ]
         else:
             user_profile_lines = ["User Profile: unknown"]
+        
+        # Extract conversation context to avoid asking for information already provided
+        conversation_context = ""
+        if history:
+            context = self._extract_conversation_context(history)
+            context_lines = []
+            
+            if context['fitness_level']:
+                context_lines.append(f"Fitness Level: {context['fitness_level']}")
+            if context['goals']:
+                context_lines.append(f"Goals: {', '.join(context['goals'])}")
+            if context['preferred_activities']:
+                context_lines.append(f"Training Focus: {', '.join(context['preferred_activities'])}")
+            if context['access_equipment']:
+                context_lines.append(f"Equipment: {', '.join(context['access_equipment'])}")
+            
+            if context_lines:
+                conversation_context = "\n\nConversation Context:\n" + "\n".join([f"  {line}" for line in context_lines])
+                conversation_context += "\n\nIMPORTANT: Do NOT ask for information that is already provided above. Use what you know about the user to give specific, personalized advice. DO NOT ask follow-up questions unless absolutely necessary for safety reasons. Instead, provide actionable advice based on the information available."
+                
+                # Log the extracted context for debugging
+                logger.info("Extracted conversation context: %s", context)
+        
         safety_flag = "yes" if self._is_safety_topic(user_message) else "no"
         profile_text = '\n'.join(user_profile_lines)
         prompt = (
             f"Persona: {APP_PERSONA}\n"
-            f"{profile_text}\n"
-            f"Use the user profile above for any calculations or advice. Do not ask for information that is already present.\n"
+            f"{profile_text}"
+            f"{conversation_context}\n"
+            f"Use the user profile and conversation context above for any calculations or advice. Do not ask for information that is already present.\n"
             f"{context_block}\n"
             f"Instructions: {ANTI_HALLUCINATION_RULES} Use contractions. Be warm and conversational. Avoid filler like ‘That’s a great question’ or ‘As an AI’. "
             f"Avoid cliché safety lines like ‘listen to your body’ or ‘if you feel pain, stop’ unless the user asks about safety, pain, injury, form, or medical care.\n"
@@ -607,10 +733,29 @@ class RAGService:
                 return f"Saved activity level is {name} (factor {f})."
         return f"Saved activity factor is {profile['activity_factor']}"
 
-    def _fallback_general(self, user_message: str, retrieved: List[str], profile: Dict[str, Any]) -> str:
+    def _fallback_general(self, user_message: str, retrieved: List[str], profile: Dict[str, Any], history: List[ChatMessage] = None) -> str:
         base = "I am in simple mode."
         context_sentence = ''
-        if retrieved:
+        
+        # Use conversation context to provide more personalized fallback responses
+        if history:
+            context = self._extract_conversation_context(history)
+            
+            # If we know the user's goals and fitness level, provide more specific advice
+            if context['goals'] and context['fitness_level']:
+                if 'muscle_building' in context['goals'] and context['fitness_level'] == 'beginner':
+                    context_sentence = " Since you're a beginner focused on building muscle, try two full-body strength training days per week focusing on compound lifts like squats, deadlifts, and bench press."
+                elif 'weight_loss' in context['goals']:
+                    context_sentence = " For weight loss, combine strength training with cardio. Start with 2-3 strength sessions per week plus 2-3 cardio sessions."
+                elif 'maintenance' in context['goals']:
+                    context_sentence = " For maintenance, focus on 2-3 strength training sessions per week to maintain muscle mass and strength."
+                else:
+                    context_sentence = " Start with 2-3 strength training sessions per week, focusing on proper form and compound movements."
+            elif context['fitness_level'] == 'beginner':
+                context_sentence = " As a beginner, start with 2-3 strength training days per week focusing on compound lifts and proper form."
+        
+        # Fall back to RAG content if available
+        if not context_sentence and retrieved:
             first = retrieved[0].strip().replace('\n', ' ')
             m = re.split(r'[.!?]', first)
             if m and m[0]:
@@ -618,13 +763,15 @@ class RAGService:
                 context_sentence = f" Here’s a quick note from my files: {snippet}."
         if not context_sentence:
             if re.search(r'frequency|how often|days|week', user_message, re.I):
-                context_sentence = " Try two full‑body days to start, plus a short daily walk."
+                context_sentence = " Try two full‑body strength training days per week focusing on compound lifts like squats, deadlifts, and bench press."
             elif re.search(r'nutrition|eat|diet|protein', user_message, re.I):
-                context_sentence = " Aim for simple, balanced meals—protein, veggies, and carbs you enjoy."
+                context_sentence = " Focus on protein (0.8-1g per pound bodyweight), complex carbs, and healthy fats. Eat in a slight calorie deficit for weight loss or maintenance for muscle building."
             elif re.search(r'form|injury|hurt|pain', user_message, re.I):
-                context_sentence = " Ease in and stop if you feel sharp pain. Good form over speed."
+                context_sentence = " Focus on proper form over weight. Start with lighter weights and perfect your technique before progressing."
+            elif re.search(r'cardio|running|walking', user_message, re.I):
+                context_sentence = " Start with 20-30 minutes of moderate cardio 2-3 times per week. Walking, cycling, or swimming are great beginner options."
             else:
-                context_sentence = " Start small, then add a little each week."
+                context_sentence = " Start with 2-3 strength training sessions per week focusing on compound movements and proper form."
         tail = " Tell me a bit more and I’ll tailor it."
         return (base + context_sentence + tail).strip()
 
