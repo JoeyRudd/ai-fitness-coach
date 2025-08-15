@@ -559,9 +559,10 @@ class RAGService:
         else:
             user_profile_lines = ["User Profile: unknown"]
         safety_flag = "yes" if self._is_safety_topic(user_message) else "no"
+        profile_text = '\n'.join(user_profile_lines)
         prompt = (
             f"Persona: {APP_PERSONA}\n"
-            f"{'\n'.join(user_profile_lines)}\n"
+            f"{profile_text}\n"
             f"Use the user profile above for any calculations or advice. Do not ask for information that is already present.\n"
             f"{context_block}\n"
             f"Instructions: {ANTI_HALLUCINATION_RULES} Use contractions. Be warm and conversational. Avoid filler like ‘That’s a great question’ or ‘As an AI’. "
