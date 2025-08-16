@@ -9,9 +9,9 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "yourusername"
+      - "JoeyRudd"
     assignees:
-      - "yourusername"
+      - "JoeyRudd"
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -25,23 +25,26 @@ updates:
       time: "09:00"
     open-pull-requests-limit: 5
     reviewers:
-      - "yourusername"
+      - "JoeyRudd"
     assignees:
-      - "yourusername"
+      - "JoeyRudd"
     commit-message:
       prefix: "chore"
       include: "scope"
 
-  # GitHub Actions
+  # GitHub Actions (exclude problematic Railway action)
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "monthly"
     open-pull-requests-limit: 3
     reviewers:
-      - "yourusername"
+      - "JoeyRudd"
     assignees:
-      - "yourusername"
+      - "JoeyRudd"
     commit-message:
       prefix: "chore"
       include: "scope"
+    ignore:
+      # Exclude Railway action from Dependabot updates to prevent 404/403 errors
+      - dependency-name: "railway/deploy"
