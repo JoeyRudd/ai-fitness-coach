@@ -107,15 +107,10 @@ jobs:
         done
         echo "$HOME/.railway/bin" >> $GITHUB_PATH
     
-    - name: Link to Railway Project
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: railway link --project courageous-insight
-    
     - name: Deploy to Railway
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: railway up --detach
+      run: railway up --detach --project courageous-insight
 
   deploy-frontend:
     name: Deploy Frontend
