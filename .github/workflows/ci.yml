@@ -102,7 +102,9 @@ jobs:
     
     - name: Install Railway CLI
       run: |
-        curl -fsSL https://railway.app/install.sh | sh
+        for i in 1 2 3; do
+          curl -fsSL https://railway.app/install.sh | sh && break || sleep 5
+        done
         echo "$HOME/.railway/bin" >> $GITHUB_PATH
     
     - name: Set Railway Token
