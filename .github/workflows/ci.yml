@@ -41,19 +41,19 @@ jobs:
     - name: Run backend tests
       run: |
         cd backend
-        pytest -v
+        PYTHONPATH=. pytest -v
     
     - name: Run linting checks
       run: |
         cd backend
         echo "Running ruff..."
-        ruff check . || echo "Ruff found issues"
+        PYTHONPATH=. ruff check . || echo "Ruff found issues"
         echo "Running black check..."
-        black --check . || echo "Black formatting issues found"
+        PYTHONPATH=. black --check . || echo "Black formatting issues found"
         echo "Running isort check..."
-        isort --check-only . || echo "Import sorting issues found"
+        PYTHONPATH=. isort --check-only . || echo "Import sorting issues found"
         echo "Running mypy..."
-        mypy . || echo "Type checking issues found"
+        PYTHONPATH=. mypy . || echo "Type checking issues found"
 
   frontend-tests:
     name: Frontend Tests
