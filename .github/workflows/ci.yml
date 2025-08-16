@@ -100,7 +100,7 @@ jobs:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       run: |
         curl -fsSL https://railway.app/install.sh | bash
-        railway up --detach
+        railway up --detach --service backend
 
   deploy-frontend:
     name: Deploy Frontend
