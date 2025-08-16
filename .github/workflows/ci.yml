@@ -101,16 +101,17 @@ jobs:
         node-version: ${{ env.NODE_VERSION }}
     
     - name: Install Railway CLI
-      run: npm install -g @railway/cli
+      run: |
+        curl -fsSL https://railway.app/install.sh | sh
+        echo "$HOME/.railway/bin" >> $GITHUB_PATH
+    
+    - name: Set Railway Token
+      run: echo "RAILWAY_TOKEN=${{ secrets.RAILWAY_TOKEN }}" >> $GITHUB_ENV
     
     - name: Link to Railway Project
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       run: railway link --project courageous-insight
     
     - name: Deploy to Railway
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       run: railway up --detach
 
   deploy-frontend:
