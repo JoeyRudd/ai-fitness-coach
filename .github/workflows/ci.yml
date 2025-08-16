@@ -96,14 +96,12 @@ jobs:
       uses: actions/checkout@v4
     
     - name: Deploy to Railway
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       run: |
         curl -fsSL https://railway.app/install.sh | bash
         echo "Available services:"
-        railway service list || echo "Could not list services"
+        RAILWAY_TOKEN=${{ secrets.RAILWAY_TOKEN }} railway service list || echo "Could not list services"
         echo "Deploying without service specification..."
-        railway up --detach
+        RAILWAY_TOKEN=${{ secrets.RAILWAY_TOKEN }} railway up --detach
 
   deploy-frontend:
     name: Deploy Frontend
