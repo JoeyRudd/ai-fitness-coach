@@ -111,6 +111,8 @@ jobs:
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       run: |
+        echo "Token length: ${#RAILWAY_TOKEN}"
+        echo "Token starts with: ${RAILWAY_TOKEN:0:10}..."
         railway link --project courageous-insight
         railway up --detach --ci
 
