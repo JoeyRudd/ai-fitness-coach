@@ -98,9 +98,6 @@ jobs:
     - name: Deploy to Railway
       run: |
         curl -fsSL https://railway.app/install.sh | bash
-        echo "Available services:"
-        RAILWAY_TOKEN=${{ secrets.RAILWAY_TOKEN }} railway service list || echo "Could not list services"
-        echo "Deploying without service specification..."
         RAILWAY_TOKEN=${{ secrets.RAILWAY_TOKEN }} railway up --detach
 
   deploy-frontend:
