@@ -103,15 +103,15 @@ jobs:
     - name: Install Railway CLI
       run: npm install -g @railway/cli
     
+    - name: Authenticate with Railway
+      run: |
+        echo ${{ secrets.RAILWAY_TOKEN }} | railway login --token-stdin
+    
     - name: Link to Railway Project
       run: railway link --project courageous-insight
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
     
     - name: Deploy to Railway
       run: railway up --detach
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
 
   deploy-frontend:
     name: Deploy Frontend
