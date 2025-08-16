@@ -2,6 +2,8 @@
 
 [![CI/CD Pipeline](https://github.com/JoeyRudd/ai-fitness-coach/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/JoeyRudd/ai-fitness-coach/actions)
 
+<!-- Test commit for Railway deployment -->
+
 A simple, user-friendly AI-powered fitness and nutrition coach application designed for beginners. The AI provides encouraging, safety-first advice using plain English explanations.
 
 ## Features
