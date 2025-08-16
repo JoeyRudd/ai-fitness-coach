@@ -108,6 +108,7 @@ jobs:
           curl -fsSL https://railway.app/install.sh | sh && break || sleep 5
         done
         echo "$HOME/.railway/bin" >> $GITHUB_PATH
+        export PATH="$HOME/.railway/bin:$PATH"
     
     - name: Deploy to Railway
       env:
@@ -115,6 +116,9 @@ jobs:
       run: |
         echo "Token length: ${#RAILWAY_TOKEN}"
         echo "Token starts with: ${RAILWAY_TOKEN:0:10}..."
+        echo "PATH: $PATH"
+        echo "Railway CLI location: $(which railway || echo 'railway not found')"
+        echo "Railway CLI version: $(railway --version || echo 'version check failed')"
         railway link --project courageous-insight
         railway up --detach --ci
 
