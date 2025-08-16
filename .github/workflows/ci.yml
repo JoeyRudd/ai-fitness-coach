@@ -98,12 +98,7 @@ jobs:
     - name: Deploy to Railway
       run: |
         curl -fsSL https://railway.app/install.sh | bash
-        echo "Railway CLI installed successfully"
-        echo "Attempting to deploy..."
-        RAILWAY_TOKEN=${{ secrets.RAILWAY_TOKEN }} railway up --detach --service main || {
-          echo "Failed with 'main' service, trying without service specification..."
-          RAILWAY_TOKEN=${{ secrets.RAILWAY_TOKEN }} railway up --detach
-        }
+        RAILWAY_TOKEN=${{ secrets.RAILWAY_TOKEN }} railway up --detach
 
   deploy-frontend:
     name: Deploy Frontend
