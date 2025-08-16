@@ -95,33 +95,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
     
-    - name: Set up Node.js for Railway CLI
-      uses: actions/setup-node@v4
-      with:
-        node-version: ${{ env.NODE_VERSION }}
-    
-    - name: Install Railway CLI
-      env:
-        RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      run: |
-        for i in 1 2 3; do
-          curl -fsSL https://railway.app/install.sh | sh && break || sleep 5
-        done
-        echo "$HOME/.railway/bin" >> $GITHUB_PATH
-        export PATH="$HOME/.railway/bin:$PATH"
-    
     - name: Deploy to Railway
       env:
         RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
       run: |
-        echo "Token length: ${#RAILWAY_TOKEN}"
-        echo "Token starts with: ${RAILWAY_TOKEN:0:10}..."
-        echo "PATH: $PATH"
-        echo "Railway CLI location: $(which railway || echo 'railway not found')"
-        echo "Railway CLI version: $(railway --version || echo 'version check failed')"
-        railway login --token $RAILWAY_TOKEN
-        railway link --project courageous-insight
-        railway up --detach --ci
+        curl -fsSL https://railway.app/install.sh | bash
+        railway up --detach
 
   deploy-frontend:
     name: Deploy Frontend
