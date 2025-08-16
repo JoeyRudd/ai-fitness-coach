@@ -119,6 +119,7 @@ jobs:
         echo "PATH: $PATH"
         echo "Railway CLI location: $(which railway || echo 'railway not found')"
         echo "Railway CLI version: $(railway --version || echo 'version check failed')"
+        railway login --token $RAILWAY_TOKEN
         railway link --project courageous-insight
         railway up --detach --ci
 
