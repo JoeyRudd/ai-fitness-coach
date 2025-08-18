@@ -18,18 +18,24 @@
           <!-- User message -->
           <div
             v-if="turn.role === 'user'"
-            class="ml-auto w-full max-w-[50%] sm:max-w-[45%]"
+            class="ml-auto flex justify-end"
           >
-            <div class="bg-blue-600 text-white rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap text-sm sm:text-base">
+            <div 
+              :class="getMessageBubbleClasses(turn.content)"
+              class="bg-blue-600 text-white rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap text-sm sm:text-base"
+            >
               {{ turn.content }}
             </div>
           </div>
           <!-- Assistant message -->
           <div
             v-else-if="turn.role === 'assistant'"
-            class="mr-auto w-full max-w-[50%] sm:max-w-[45%]"
+            class="mr-auto flex justify-start"
           >
-            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl whitespace-pre-wrap text-sm sm:text-base">
+            <div 
+              :class="getMessageBubbleClasses(turn.content)"
+              class="bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl whitespace-pre-wrap text-sm sm:text-base"
+            >
               {{ turn.content }}
             </div>
           </div>
@@ -44,8 +50,8 @@
 
         <!-- Loading indicator -->
         <div v-if="loading" class="flex w-full">
-          <div class="mr-auto w-full max-w-[50%] sm:max-w-[45%]">
-            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl flex items-center space-x-2 text-sm sm:text-base">
+          <div class="mr-auto flex justify-start">
+            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl flex items-center space-x-2 text-sm sm:text-base max-w-[280px] sm:max-w-[320px]">
               <div class="flex space-x-1">
                 <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
                 <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay:0.1s"></span>
@@ -363,6 +369,33 @@ async function sendMessage() {
 function handleEnter(e: KeyboardEvent) {
   if (e.shiftKey || e.metaKey || e.ctrlKey) { return; }
   sendMessage();
+}
+
+function getMessageBubbleClasses(content: string) {
+  const length = content.length;
+  
+  // Very short messages (1-20 chars) - keep them compact
+  if (length <= 20) {
+    return 'max-w-[200px] sm:max-w-[240px]';
+  }
+  
+  // Short messages (21-50 chars) - moderate width
+  if (length <= 50) {
+    return 'max-w-[280px] sm:max-w-[320px]';
+  }
+  
+  // Medium messages (51-100 chars) - wider but not full width
+  if (length <= 100) {
+    return 'max-w-[400px] sm:max-w-[450px]';
+  }
+  
+  // Long messages (101-200 chars) - use most of available width
+  if (length <= 200) {
+    return 'max-w-[500px] sm:max-w-[550px]';
+  }
+  
+  // Very long messages (200+ chars) - use full available width
+  return 'max-w-[600px] sm:max-w-[650px]';
 }
 </script>
 
