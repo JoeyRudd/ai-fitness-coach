@@ -39,7 +39,7 @@
                     </svg>
                   </span>
                   <span v-else-if="turn.status === 'sent'" class="text-xs text-gray-400 dark:text-gray-500">✓</span>
-                  <span v-else-if="turn.status === 'delivered'" class="text-xs text-blue-500 dark:text-blue-400">✓✓</span>
+                  <span v-else-if="turn.status === 'delivered'" class="text-xs text-blue-500 dark:text-blue-400">✓</span>
                   <span v-else-if="turn.status === 'error'" class="text-xs text-red-500 dark:text-red-400">⚠</span>
                 </div>
               </div>
