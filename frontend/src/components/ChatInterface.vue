@@ -20,11 +20,29 @@
             v-if="turn.role === 'user'"
             class="ml-auto flex justify-end"
           >
-            <div 
-              :class="getMessageBubbleClasses(turn.content)"
-              class="bg-blue-600 text-white rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap text-sm sm:text-base"
-            >
-              {{ turn.content }}
+            <div class="flex flex-col items-end">
+              <div 
+                :class="getMessageBubbleClasses(turn.content)"
+                class="bg-blue-600 text-white rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap text-sm sm:text-base transition-all duration-200 ease-out"
+              >
+                {{ turn.content }}
+              </div>
+              <div class="flex items-center space-x-2 mt-1 mr-2">
+                <div v-if="turn.timestamp" class="text-xs text-gray-400 dark:text-gray-500">
+                  {{ formatTime(turn.timestamp) }}
+                </div>
+                <div v-if="turn.status" class="flex items-center">
+                  <span v-if="turn.status === 'sending'" class="text-xs text-gray-400 dark:text-gray-500">
+                    <svg class="w-3 h-3 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                      <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                  </span>
+                  <span v-else-if="turn.status === 'sent'" class="text-xs text-gray-400 dark:text-gray-500">✓</span>
+                  <span v-else-if="turn.status === 'delivered'" class="text-xs text-blue-500 dark:text-blue-400">✓✓</span>
+                  <span v-else-if="turn.status === 'error'" class="text-xs text-red-500 dark:text-red-400">⚠</span>
+                </div>
+              </div>
             </div>
           </div>
           <!-- Assistant message -->
@@ -32,11 +50,16 @@
             v-else-if="turn.role === 'assistant'"
             class="mr-auto flex justify-start"
           >
-            <div 
-              :class="getMessageBubbleClasses(turn.content)"
-              class="bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl whitespace-pre-wrap text-sm sm:text-base"
-            >
-              {{ turn.content }}
+            <div class="flex flex-col items-start">
+              <div 
+                :class="getMessageBubbleClasses(turn.content)"
+                class="bg-gray-100 dark:bg-neutral-800 text-gray-900 dark:text-gray-100 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl whitespace-pre-wrap text-sm sm:text-base transition-all duration-200 ease-out"
+              >
+                {{ turn.content }}
+              </div>
+              <div v-if="turn.timestamp" class="text-xs text-gray-400 dark:text-gray-500 mt-1 ml-2">
+                {{ formatTime(turn.timestamp) }}
+              </div>
             </div>
           </div>
           <!-- System message -->
@@ -52,12 +75,14 @@
         <div v-if="loading" class="flex w-full">
           <div class="mr-auto flex justify-start">
             <div class="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl flex items-center space-x-2 text-sm sm:text-base max-w-[280px] sm:max-w-[320px]">
-              <div class="flex space-x-1">
-                <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce"></span>
-                <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay:0.1s"></span>
-                <span class="w-2 h-2 bg-blue-500 rounded-full animate-bounce" style="animation-delay:0.2s"></span>
+              <div class="flex items-center space-x-1">
+                <span class="text-gray-500 dark:text-gray-400 mr-2">AI is typing</span>
+                <div class="flex space-x-1">
+                  <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"></span>
+                  <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay:0.1s"></span>
+                  <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay:0.2s"></span>
+                </div>
               </div>
-              <span>Thinking...</span>
             </div>
           </div>
         </div>
@@ -145,7 +170,12 @@ import { ref, computed, nextTick } from 'vue';
 import axios from 'axios';
 
 // Types
-export interface HistoryTurn { role: 'user' | 'assistant' | 'system'; content: string }
+export interface HistoryTurn { 
+  role: 'user' | 'assistant' | 'system'; 
+  content: string;
+  timestamp?: Date;
+  status?: 'sending' | 'sent' | 'delivered' | 'error';
+}
 export type BackendResponse = {
   response: string
   profile: { sex: string | null; age: number | null; weight_kg: number | null; height_cm: number | null; activity_factor: number | null }
@@ -309,10 +339,16 @@ async function sendMessage() {
   if (!content) return;
   if (maxLength && content.length > maxLength) return;
 
-  history.value.push({ role: 'user', content });
+  // Add user message with 'sending' status
+  let userMessage: HistoryTurn = { role: 'user', content, timestamp: new Date(), status: 'sending' };
+  history.value.push(userMessage);
   emit('messageSent', content);
   userInput.value = '';
   await scrollToBottom();
+  
+  // Update status to 'sent' immediately
+  userMessage.status = 'sent';
+  
   loading.value = true;
   maybeSummarizeHistory();
 
@@ -341,7 +377,11 @@ async function sendMessage() {
     if (!data || typeof data !== 'object' || (data as any).response === undefined) {
       throw new Error('Unexpected response shape');
     }
-    history.value.push({ role: 'assistant', content: data.response });
+    
+    // Update user message status to 'delivered'
+    userMessage.status = 'delivered';
+    
+    history.value.push({ role: 'assistant', content: data.response, timestamp: new Date() });
     profile.value = data.profile || profile.value;
     tdeeData.value = data.tdee;
     missing.value = data.missing || [];
@@ -359,7 +399,11 @@ async function sendMessage() {
     } else {
       console.error('[ChatInterface] Chat request error', e, { endpoint });
     }
-    history.value.push({ role: 'assistant', content: 'Sorry, there was an error processing that. Please try again.' });
+    
+    // Update user message status to 'error'
+    userMessage.status = 'error';
+    
+    history.value.push({ role: 'assistant', content: 'Sorry, there was an error processing that. Please try again.', timestamp: new Date() });
   } finally {
     loading.value = false;
     scrollToBottom();
@@ -396,6 +440,25 @@ function getMessageBubbleClasses(content: string) {
   
   // Very long messages (200+ chars) - use full available width
   return 'max-w-[600px] sm:max-w-[650px]';
+}
+
+function formatTime(timestamp: Date | undefined): string {
+  if (!timestamp) return '';
+  const now = new Date();
+  const diffInSeconds = Math.floor((now.getTime() - timestamp.getTime()) / 1000);
+
+  if (diffInSeconds < 60) {
+    return `${diffInSeconds}s ago`;
+  } else if (diffInSeconds < 3600) {
+    const minutes = Math.floor(diffInSeconds / 60);
+    return `${minutes}m ago`;
+  } else if (diffInSeconds < 86400) {
+    const hours = Math.floor(diffInSeconds / 3600);
+    return `${hours}h ago`;
+  } else {
+    const days = Math.floor(diffInSeconds / 86400);
+    return `${days}d ago`;
+  }
 }
 </script>
 
