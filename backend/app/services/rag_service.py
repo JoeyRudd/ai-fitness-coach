@@ -750,7 +750,7 @@ class RAGService:
                     c_trim = c_trim[:500] + "..."
                 safe_chunks.append(c_trim)
             if safe_chunks:
-                context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + "\nUse this info if helpful. If unsure, provide general but safe guidance without asking questions."
+                context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + "\n\nCRITICAL: This context contains specific, expert fitness information. ALWAYS use the specific exercises, techniques, and advice mentioned in this context rather than generic fitness advice. If the context mentions specific exercises like 'Flat wide grip chest press' or 'Chest supported flared elbow row', use those exact names and details."
         # Always include user profile for general advice
         profile = getattr(self, 'last_profile', None)
         user_profile_lines = []
@@ -801,6 +801,8 @@ class RAGService:
             f"6. Avoid filler phrases like 'That's a great question' or 'As an AI'\n"
             f"7. Vary your language naturally - don't use repetitive phrases\n"
             f"8. Be direct and confident - provide concrete numbers and specific advice when possible\n"
+            f"9. NEVER reference training schedules, routines, or plans that aren't explicitly mentioned in the conversation or user profile\n"
+            f"10. If the context contains specific exercise names, use those exact names instead of generic terms\n"
             f"{profile_text}"
             f"{conversation_context}\n"
             f"Use the user profile and conversation context above for any calculations or advice. Do not ask for information that is already present.\n"
@@ -819,7 +821,7 @@ class RAGService:
         try:
             resp = self._model.generate_content(prompt, generation_config=genai.types.GenerationConfig(  # type: ignore
                 temperature=0.55,
-                max_output_tokens=180,
+                max_output_tokens=120,  # Reduced from 180 to enforce conciseness
                 top_p=0.9,
                 top_k=40
             ))
@@ -859,7 +861,7 @@ class RAGService:
             if context['goals'] and context['fitness_level']:
                 if 'muscle_building' in context['goals'] and context['fitness_level'] == 'beginner':
                     if 'gym' in context['access_equipment']:
-                        context_sentence = " For building muscle as a beginner with gym access, do two full-body strength days per week. Focus on squats, deadlifts, bench press, rows, and overhead press. Aim for 3-4 sets of 8-12 reps."
+                        context_sentence = " For building muscle as a beginner with gym access, do two full-body strength days per week. Focus on compound movements like leg press, chest press, lat pulldown, and shoulder press. Aim for 3-4 sets of 8-12 reps with proper form."
                     else:
                         context_sentence = " For building muscle as a beginner, do two full-body strength days per week. Use bodyweight exercises: push-ups, squats, lunges, planks, and resistance bands for rows and presses."
                 elif 'weight_loss' in context['goals']:
@@ -875,7 +877,7 @@ class RAGService:
                     context_sentence = " Do 2-3 strength training sessions per week focusing on compound movements and proper form."
             elif context['fitness_level'] == 'beginner':
                 if 'gym' in context['access_equipment']:
-                    context_sentence = " As a beginner with gym access, do 2-3 strength training days per week focusing on compound lifts and proper form."
+                    context_sentence = " As a beginner with gym access, do 2-3 strength training days per week focusing on compound movements like leg press, chest press, and lat pulldown with proper form."
                 else:
                     context_sentence = " As a beginner, do 2-3 strength training days per week using bodyweight exercises and resistance bands."
             elif context['injuries_limitations']:
@@ -895,7 +897,7 @@ class RAGService:
         if not context_sentence:
             if re.search(r'frequency|how often|days|week', user_message, re.I):
                 if context.get('fitness_level') == 'beginner':
-                    context_sentence = " Do 2-3 full-body strength training days per week. Focus on compound movements like squats, deadlifts, and push-ups."
+                    context_sentence = " Do 2-3 full-body strength training days per week. Focus on compound movements like leg press, chest press, and lat pulldown."
                 else:
                     context_sentence = " Do 3-4 training days per week, alternating between strength and cardio. Listen to your body and adjust based on recovery."
             elif re.search(r'nutrition|eat|diet|protein', user_message, re.I):
@@ -914,12 +916,12 @@ class RAGService:
                     context_sentence = " Do 2-4 cardio sessions per week, mixing steady-state and interval training. Adjust intensity based on your fitness level."
             elif re.search(r'muscle|build muscle|strength|stronger', user_message, re.I):
                 if context.get('fitness_level') == 'beginner':
-                    context_sentence = " For building muscle as a beginner, do 2-3 full-body strength days per week. Focus on compound movements: squats, deadlifts, bench press, rows, and overhead press. Do 3-4 sets of 8-12 reps with proper form."
+                    context_sentence = " For building muscle as a beginner, do 2-3 full-body strength days per week. Focus on compound movements: leg press, chest press, lat pulldown, and shoulder press. Do 3-4 sets of 8-12 reps with proper form."
                 else:
                     context_sentence = " For muscle building, focus on progressive overload with compound movements. Train each muscle group 2-3 times per week with 3-4 sets of 6-12 reps. Ensure adequate protein intake and recovery."
             elif re.search(r'workout|routine|plan', user_message, re.I):
                 if context.get('fitness_level') == 'beginner':
-                    context_sentence = " Here's a simple beginner routine: Day 1 - Squats, push-ups, rows (3x8-12 each). Day 2 - Rest or light walking. Day 3 - Deadlifts, overhead press, planks (3x8-12 each). Day 4 - Rest. Day 5 - Repeat Day 1. Focus on form and gradually increase weight."
+                    context_sentence = " Here's a simple beginner routine: Day 1 - Leg press, chest press, lat pulldown (3x8-12 each). Day 2 - Rest or light walking. Day 3 - Shoulder press, rows, planks (3x8-12 each). Day 4 - Rest. Day 5 - Repeat Day 1. Focus on form and gradually increase weight."
                 else:
                     context_sentence = " Consider a push/pull/legs split or upper/lower split. Train 4-5 days per week with 1-2 rest days. Focus on compound movements and progressive overload. Include 1-2 cardio sessions for conditioning."
             else:
