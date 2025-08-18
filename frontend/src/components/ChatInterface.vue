@@ -170,15 +170,41 @@ const maxLength = props.maxLength ?? 1000;
 function resolveEndpoint(): string {
   const envBase = import.meta.env.VITE_API_BASE as string | undefined;
 
+  console.log('[ChatInterface] Environment check:', {
+    VITE_API_BASE: envBase,
+    PROD: import.meta.env.PROD,
+    MODE: import.meta.env.MODE
+  });
+
   if (!envBase) {
     // This will now be very obvious in the console if the variable is missing
     console.error("FATAL: VITE_API_BASE environment variable is not set!");
-    // Return a non-functional path to ensure it fails
+    
+    // For production, try to use the Railway URL as fallback
+    if (import.meta.env.PROD) {
+      console.warn("Attempting to use Railway fallback URL");
+      return 'https://outstanding-caring-production.up.railway.app/api/v1/chat';
+    }
+    
+    // Return a non-functional path to ensure it fails in development
     return '/error-vite-api-base-not-set';
   }
   
   // The env var should contain the full path including /api/v1
-  return `${envBase.replace(/\/$/, '')}/chat`;
+  let endpoint = `${envBase.replace(/\/$/, '')}/chat`;
+  
+  // Ensure we have the correct API path structure
+  if (!endpoint.includes('/api/v1')) {
+    console.warn('[ChatInterface] Environment variable missing /api/v1, fixing...');
+    if (endpoint.includes('railway.app')) {
+      endpoint = 'https://outstanding-caring-production.up.railway.app/api/v1/chat';
+    } else {
+      endpoint = `${envBase.replace(/\/$/, '')}/api/v1/chat`;
+    }
+  }
+  
+  console.log('[ChatInterface] Built endpoint from env:', endpoint);
+  return endpoint;
 }
 
 console.debug('[ChatInterface] Using API endpoint:', resolveEndpoint());
