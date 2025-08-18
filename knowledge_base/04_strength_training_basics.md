@@ -19,13 +19,59 @@ Strength training is the foundation of building muscle and improving your body c
 
 **Start with video research:**
 - Search online for proper exercise execution videos
-- Focus on reputable sources like TNF, KeenanRMalloy, Trell, JPG Coaching, and Jeff Nippard
+- Check out reputable influencers like TNF, KeenanRMalloy, Trell, JPG Coaching and Trained by JP
 - Watch multiple angles to understand the movement pattern
 
 **Then practice and record:**
 - Record yourself performing the exercise
 - Compare your execution to the reference videos
 - Focus on matching the movement pattern, not just completing reps
+
+## Great Fitness People to Follow and Learn From
+
+**Who are some good fitness people I can check out?** Here are the top fitness influencers and coaches I recommend for beginners:
+
+**Strength Training Coaches:**
+- **TNF** - Excellent form tutorials and beginner-friendly content
+- **KeenanRMalloy** - Great for learning proper exercise execution
+- **Trell** - Focuses on safe, effective training techniques
+- **JPG Coaching** - Provides clear, actionable fitness advice
+- **Trained by JP** - Excellent for understanding movement patterns
+
+**Why these influencers are worth following:**
+- They prioritize proper form and safety
+- Their content is beginner-friendly and easy to understand
+- They focus on evidence-based training methods
+- They provide multiple camera angles for better learning
+- Their advice is practical and actionable for real people
+
+**How to use their content:**
+- Watch their exercise demonstration videos before trying new movements
+- Pay attention to their form cues and coaching points
+- Use their content as a reference when practicing exercises
+- Follow their progression advice for building strength safely
+
+## Fitness Resources and Learning Materials
+
+**Where can I learn more about fitness?** Beyond following the influencers above, here are additional resources:
+
+**Online Learning Platforms:**
+- YouTube channels of the recommended coaches for free content
+- Exercise databases with proper form demonstrations
+- Fitness apps with guided workout programs
+
+**What to look for in fitness content:**
+- Clear demonstrations from multiple angles
+- Explanations of proper form and common mistakes
+- Progressive difficulty levels for beginners
+- Focus on safety and injury prevention
+- Evidence-based training methods
+
+**Building your fitness knowledge:**
+- Start with basic movement patterns
+- Gradually add complexity as you improve
+- Focus on understanding the "why" behind exercises
+- Learn to recognize good vs. poor form
 
 ## Understanding Muscle Connection vs. Movement
 
