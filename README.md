@@ -120,11 +120,5 @@ npm run dev
 make test
 ```
 
-## Future Enhancements
-- Optional: Reintroduce FAISS / approximate search if knowledge base grows large.
-- Add source citation formatting in answers.
-- Persist user profile between sessions.
 
-## License
-Internal / prototype. Add a license if distributing.
 
