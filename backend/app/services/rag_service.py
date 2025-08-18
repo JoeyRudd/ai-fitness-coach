@@ -111,6 +111,7 @@ FIELD_HUMAN = {
 class RAGService:
     def __init__(self) -> None:
         self._model = None
+        self._desired_length = "medium"
         self._configure_genai()
         # RAG index load - handle missing ML dependencies gracefully
         try:
@@ -191,6 +192,9 @@ class RAGService:
             intent = 'tdee'
         else:
             intent = 'general'
+
+        # Decide desired response length up-front for this turn
+        self._desired_length = self._decide_response_length(intent, last_user, history)
 
         recall_field = self._detect_recall(last_user)
         if recall_field:
@@ -740,6 +744,42 @@ class RAGService:
         logger.info("Final extracted context: %s", context)
         return context
 
+    def _decide_response_length(self, intent: str, user_message: str, history: Optional[List[ChatMessage]]) -> str:
+        """Heuristic length selector: 'short' | 'medium' | 'long'."""
+        msg = (user_message or "").strip().lower()
+
+        # Very brief/acknowledgement style
+        if msg in {"ok", "okay", "thanks", "thank you", "got it", "cool", "great"} or len(msg) <= 8:
+            return "short"
+
+        # Recall answers should be short
+        if self._detect_recall(user_message):
+            return "short"
+
+        # Safety/pain topics may need a bit more context
+        if self._is_safety_topic(user_message):
+            return "medium"
+
+        # TDEE path:
+        # - If missing fields and we're asking for info: short
+        # - If delivering numbers: medium
+        if intent == "tdee":
+            if self._unresolved_tdee(history or []):
+                return "short"
+            return "medium"
+
+        # General intent
+        simple_q = any(w in msg for w in ["what is", "how do i", "how to", "when should i"])
+        if len(msg) <= 60 and ("?" in msg or simple_q):
+            return "short"
+
+        if any(w in msg for w in ["workout", "routine", "plan", "program", "split"]):
+            return "long"
+        if sum(w in msg for w in ["diet", "nutrition", "cardio", "strength", "protein", "calorie"]) >= 2:
+            return "medium"
+
+        return "medium"
+
     def _build_prompt_general(self, user_message: str, retrieved: List[str], history: List[ChatMessage] = None) -> str:
         context_block = ""
         if retrieved:
@@ -790,6 +830,13 @@ class RAGService:
         
         safety_flag = "yes" if self._is_safety_topic(user_message) else "no"
         profile_text = '\n'.join(user_profile_lines)
+        mode = getattr(self, "_desired_length", "medium")
+        if mode == "short":
+            length_instruction = "Keep it very brief: 1–2 sentences max."
+        elif mode == "long":
+            length_instruction = "Provide up to 2 short paragraphs. Use bullets only if essential."
+        else:
+            length_instruction = "One short paragraph (3–5 concise sentences)."
         prompt = (
             f"Persona: {APP_PERSONA}\n"
             f"CRITICAL RULES:\n"
@@ -807,6 +854,7 @@ class RAGService:
             f"{conversation_context}\n"
             f"Use the user profile and conversation context above for any calculations or advice. Do not ask for information that is already present.\n"
             f"{context_block}\n"
+            f"Response length: {length_instruction}\n"
             f"Instructions: {ANTI_HALLUCINATION_RULES} Use contractions. Be warm and conversational. "
             f"Avoid cliché safety lines like 'listen to your body' or 'if you feel pain, stop' unless the user asks about safety, pain, injury, form, or medical care.\n"
             f"SafetyAsked: {safety_flag}\n"
@@ -819,9 +867,16 @@ class RAGService:
         if not self._model:
             return "Model not ready. Set GEMINI_API_KEY and retry."
         try:
+            mode = getattr(self, "_desired_length", "medium")
+            max_tokens = 120
+            if mode == "short":
+                max_tokens = 80
+            elif mode == "long":
+                max_tokens = 200
+
             resp = self._model.generate_content(prompt, generation_config=genai.types.GenerationConfig(  # type: ignore
                 temperature=0.55,
-                max_output_tokens=120,  # Reduced from 180 to enforce conciseness
+                max_output_tokens=max_tokens,
                 top_p=0.9,
                 top_k=40
             ))
@@ -927,8 +982,24 @@ class RAGService:
             else:
                 context_sentence = " Do 2-3 strength training sessions per week focusing on compound movements and proper form. Include 2-3 cardio sessions and prioritize protein intake for muscle building or weight loss."
         
-        # Remove the generic follow-up question and make it more actionable
-        return (base + context_sentence).strip()
+        # Length-aware return
+        mode = getattr(self, "_desired_length", "medium")
+        if mode == "short":
+            # Trim to the first sentence and keep it punchy
+            first_sent = re.split(r'[.!?]', context_sentence.strip() or ".")[0].strip()
+            if first_sent:
+                return f"{base} {first_sent}."
+            return base
+        elif mode == "long":
+            return (base + context_sentence).strip()
+        else:
+            # Medium: cap length to roughly one short paragraph
+            para = (base + context_sentence).strip()
+            if len(para) > 320:
+                para = para[:320].rstrip()
+                if not para.endswith("."):
+                    para += "..."
+            return para
 
     def _sanitize_cliches(self, user_message: str, reply: str) -> str:
         """Remove cliché safety phrases unless the user asked about safety/pain/injury.
