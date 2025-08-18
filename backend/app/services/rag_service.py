@@ -196,6 +196,12 @@ class RAGService:
         # Decide desired response length up-front for this turn
         self._desired_length = self._decide_response_length(intent, last_user, history)
 
+        # If it's just a greeting/ack and short mode, reply briefly without extra advice
+        if self._desired_length == 'short':
+            ack = self._is_greeting_or_ack(last_user)
+            if ack:
+                return HistoryChatResponse(response=ack, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
+
         recall_field = self._detect_recall(last_user)
         if recall_field:
             resp_text = self._handle_recall(recall_field, profile)
@@ -744,6 +750,16 @@ class RAGService:
         logger.info("Final extracted context: %s", context)
         return context
 
+    def _is_greeting_or_ack(self, message: str) -> Optional[str]:
+        m = (message or '').strip().lower()
+        if m in {"hi", "hey", "hello"}:
+            return "Hi! How can I help?"
+        if m in {"thanks", "thank you", "ty"}:
+            return "You're welcome!"
+        if m in {"ok", "okay", "got it", "cool", "great"}:
+            return "Sounds good."
+        return None
+
     def _decide_response_length(self, intent: str, user_message: str, history: Optional[List[ChatMessage]]) -> str:
         """Heuristic length selector: 'short' | 'medium' | 'long'."""
         msg = (user_message or "").strip().lower()
@@ -880,7 +896,18 @@ class RAGService:
                 top_p=0.9,
                 top_k=40
             ))
-            return (resp.text or '').strip()  # type: ignore
+            text = (resp.text or '').strip()  # type: ignore
+            # Enforce short/medium caps post-generation
+            if mode == "short":
+                parts = re.split(r"([.!?])", text)
+                if parts:
+                    text = (parts[0] + (parts[1] if len(parts) > 1 else '.')).strip()
+            elif mode == "medium" and len(text) > 320:
+                trimmed = text[:320].rstrip()
+                if not trimmed.endswith('.'):
+                    trimmed += '...'
+                text = trimmed
+            return text
         except Exception as e:  # noqa: BLE001
             logger.error(f"Gemini failure: {e}")
             return "Sorry. Trouble answering now. Try again soon."
