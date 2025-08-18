@@ -307,6 +307,9 @@ class RAGService:
         try:
             if hasattr(self, '_rag_index') and self._rag_index is not None:
                 retrieved = self._rag_index.retrieve(last_user, k=settings.max_retrieval_chunks)  # type: ignore
+                logger.info("RAG retrieval successful: %d results for query '%s'", len(retrieved), last_user)
+                for i, r in enumerate(retrieved):
+                    logger.info("Retrieved %d: [%s] %s...", i, r['source'], r['text'][:100])
         except Exception as e:  # noqa: BLE001
             logger.warning("RAG retrieval failed: %s", e)
             retrieved = []
@@ -339,10 +342,10 @@ class RAGService:
 
         # If we have sufficient context, be more directive about not asking questions
         if has_sufficient_context:
-            prompt = self._build_prompt_general(last_user, retrieved_strings, history)
+            prompt = self._build_prompt_general(last_user, retrieved, history)
         else:
             # For users with minimal context, still try to be helpful but may need to ask clarifying questions
-            prompt = self._build_prompt_general(last_user, retrieved_strings, history)
+            prompt = self._build_prompt_general(last_user, retrieved, history)
         
         model_reply = self._generate_response(prompt)
         # Strip cliché safety lines unless the user asked about safety/pain
@@ -796,15 +799,16 @@ class RAGService:
 
         return "medium"
 
-    def _build_prompt_general(self, user_message: str, retrieved: List[str], history: List[ChatMessage] = None) -> str:
+    def _build_prompt_general(self, user_message: str, retrieved: List[Dict[str, str]], history: List[ChatMessage] = None) -> str:
         context_block = ""
         if retrieved:
             safe_chunks = []
             for c in retrieved[:settings.max_retrieval_chunks]:
-                c_trim = c.strip()
-                if len(c_trim) > 500:
-                    c_trim = c_trim[:500] + "..."
-                safe_chunks.append(c_trim)
+                # Extract text from the retrieved dictionary
+                chunk_text = c.get('text', '').strip()
+                if len(chunk_text) > 500:
+                    chunk_text = chunk_text[:500] + "..."
+                safe_chunks.append(chunk_text)
             if safe_chunks:
                 context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + "\n\nCRITICAL: This context contains specific, expert fitness information. ALWAYS use the specific exercises, techniques, and advice mentioned in this context rather than generic fitness advice. If the context mentions specific exercises like 'Flat wide grip chest press' or 'Chest supported flared elbow row', use those exact names and details."
         # Always include user profile for general advice
@@ -884,11 +888,11 @@ class RAGService:
             return "Model not ready. Set GEMINI_API_KEY and retry."
         try:
             mode = getattr(self, "_desired_length", "medium")
-            max_tokens = 120
+            max_tokens = 300
             if mode == "short":
-                max_tokens = 80
+                max_tokens = 120
             elif mode == "long":
-                max_tokens = 200
+                max_tokens = 400
 
             resp = self._model.generate_content(prompt, generation_config=genai.types.GenerationConfig(  # type: ignore
                 temperature=0.55,
@@ -902,8 +906,8 @@ class RAGService:
                 parts = re.split(r"([.!?])", text)
                 if parts:
                     text = (parts[0] + (parts[1] if len(parts) > 1 else '.')).strip()
-            elif mode == "medium" and len(text) > 320:
-                trimmed = text[:320].rstrip()
+            elif mode == "medium" and len(text) > 600:
+                trimmed = text[:600].rstrip()
                 if not trimmed.endswith('.'):
                     trimmed += '...'
                 text = trimmed
