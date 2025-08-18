@@ -30,11 +30,13 @@ logger = logging.getLogger("fitness_coach")
 
 # ====================== Constants / Persona =================
 APP_PERSONA = (
-    "You are a friendly, encouraging, safety‑first fitness coach for true beginners (often mid‑40s). "
-    "Sound natural and human. Warm, calm, optimistic. Use contractions and plain words. "
-    "Keep messages brief (1–3 short paragraphs). No bullet lists unless the user asks. "
-    "Be proactive and solution-oriented - provide actionable advice based on what you know about the user. "
-    "Avoid medical claims or diagnoses. Focus on practical, achievable guidance."
+    "You are a knowledgeable, encouraging fitness coach who talks like a real person. "
+    "Be warm and supportive, but vary your language naturally. "
+    "Give specific, actionable advice based on what you know about the user. "
+    "Keep responses concise (1-2 short paragraphs). "
+    "Be direct and confident in your recommendations. "
+    "Avoid repetitive phrases or robotic language. "
+    "Focus on practical guidance that beginners can actually follow."
 )
 GEMINI_MODEL_NAME = settings.gemini_model_name
 # Prompt instruction block appended after persona & optional context
@@ -241,15 +243,17 @@ class RAGService:
                     cut_low = max(1200, int(tdee_val - 500))
                     cut_high = int(tdee_val - 300)
                     resp_text = (
-                        f"For weight loss, a safe calorie target is about {cut_low}-{cut_high} calories per day (300-500 below your TDEE of {int(tdee_val)}). "
-                        f"This should help you lose about 1 pound per week. Don't go below 1200 calories without medical supervision."
+                        f"For weight loss, aim for {cut_low}-{cut_high} calories per day (300-500 below your TDEE of {int(tdee_val)}). "
+                        f"This creates a sustainable deficit for about 1 pound of weight loss per week. "
+                        f"Don't go below 1200 calories without medical supervision."
                     )
                 elif goal == 'bulk':
                     bulk_low = int(tdee_val + 200)
                     bulk_high = int(tdee_val + 400)
                     resp_text = (
-                        f"For gaining weight, a good calorie target is about {bulk_low}-{bulk_high} calories per day (200-400 above your TDEE of {int(tdee_val)}). "
-                        f"This should help you gain weight at a safe pace."
+                        f"For muscle gain, target {bulk_low}-{bulk_high} calories per day (200-400 above your TDEE of {int(tdee_val)}). "
+                        f"This provides enough energy for muscle growth without excessive fat gain. "
+                        f"Focus on getting adequate protein and progressive overload in your training."
                     )
                 else:
                     resp_text = self._format_tdee(merged_profile, bmr_val, tdee_val)
@@ -276,16 +280,16 @@ class RAGService:
                     # Provide helpful guidance based on what we know, then gently ask for missing info
                     guidance = self._provide_tdee_guidance_with_context(merged_profile, conversation_context)
                     human = FIELD_HUMAN[ask_field]
-                    resp_text = f"{guidance}\n\nTo give you more specific numbers, can you tell me your {human}?"
+                    resp_text = f"{guidance}\n\nTo get your specific calorie numbers, what's your {human}?"
                     return HistoryChatResponse(response=resp_text, profile=merged_profile, tdee=None, missing=merged_missing, asked_this_intent=[ask_field], intent='tdee')
                 else:
                     # No helpful context, just ask for the missing info
                     human = FIELD_HUMAN[ask_field]
-                    resp_text = f"Can you tell me your {human}?" if ask_field != 'activity_factor' else "What is your activity level? (sedentary, light, moderate, very, extra)"
+                    resp_text = f"What's your {human}?" if ask_field != 'activity_factor' else "What's your activity level? (sedentary, light, moderate, very, extra)"
                     return HistoryChatResponse(response=resp_text, profile=merged_profile, tdee=None, missing=merged_missing, asked_this_intent=[ask_field], intent='tdee')
             
             # If user has already been asked for all essentials, give general advice
-            resp_text = "I can still guide you. Start with 2 easy full body days and a short daily walk. Share missing info later for numbers."
+            resp_text = "I can still help! Do 2 full-body strength days per week and walk daily. Share your stats when you're ready for specific numbers."
             return HistoryChatResponse(response=resp_text, profile=merged_profile, tdee=None, missing=merged_missing, asked_this_intent=[], intent='tdee')
 
         # ---- General intent path w/ RAG grounding ----
@@ -537,10 +541,11 @@ class RAGService:
             "1. NEVER ask for information that is already provided in the user profile above",
             "2. NEVER ask follow-up questions unless absolutely necessary for safety reasons",
             "3. Use available information to give specific, actionable advice",
-            "4. If information is missing, provide general but helpful guidance based on what you know",
-            "5. Be proactive and solution-oriented, not interrogative",
-            "6. Keep responses concise and actionable (1-2 short paragraphs max)",
-            "7. Avoid filler phrases like 'That's a great question' or 'As an AI'",
+            "4. Be proactive and solution-oriented, not interrogative",
+            "5. Keep responses concise and actionable (1-2 short paragraphs max)",
+            "6. Avoid filler phrases like 'That's a great question' or 'As an AI'",
+            "7. Vary your language naturally - don't use the same phrases repeatedly",
+            "8. Be direct and confident - provide concrete numbers and specific advice when possible",
             *user_profile_lines
         ]
         
@@ -794,6 +799,8 @@ class RAGService:
             f"4. Be proactive and solution-oriented, not interrogative\n"
             f"5. Keep responses concise and actionable (1-2 short paragraphs max)\n"
             f"6. Avoid filler phrases like 'That's a great question' or 'As an AI'\n"
+            f"7. Vary your language naturally - don't use repetitive phrases\n"
+            f"8. Be direct and confident - provide concrete numbers and specific advice when possible\n"
             f"{profile_text}"
             f"{conversation_context}\n"
             f"Use the user profile and conversation context above for any calculations or advice. Do not ask for information that is already present.\n"
@@ -841,7 +848,7 @@ class RAGService:
         return f"Saved activity factor is {profile['activity_factor']}"
 
     def _fallback_general(self, user_message: str, retrieved: List[str], profile: Dict[str, Any], history: List[ChatMessage] = None) -> str:
-        base = "I am in simple mode."
+        base = "Here's what I can tell you:"
         context_sentence = ''
         
         # Use conversation context to provide more personalized fallback responses
@@ -852,29 +859,29 @@ class RAGService:
             if context['goals'] and context['fitness_level']:
                 if 'muscle_building' in context['goals'] and context['fitness_level'] == 'beginner':
                     if 'gym' in context['access_equipment']:
-                        context_sentence = " Since you're a beginner focused on building muscle with gym access, try two full-body strength training days per week focusing on compound lifts like squats, deadlifts, and bench press."
+                        context_sentence = " For building muscle as a beginner with gym access, do two full-body strength days per week. Focus on squats, deadlifts, bench press, rows, and overhead press. Aim for 3-4 sets of 8-12 reps."
                     else:
-                        context_sentence = " Since you're a beginner focused on building muscle, try two full-body strength training days per week using bodyweight exercises and resistance bands."
+                        context_sentence = " For building muscle as a beginner, do two full-body strength days per week. Use bodyweight exercises: push-ups, squats, lunges, planks, and resistance bands for rows and presses."
                 elif 'weight_loss' in context['goals']:
                     if context['time_availability'] == 'very_busy':
-                        context_sentence = " For weight loss with a busy schedule, combine 2-3 short strength sessions (20-30 min) with daily walking. Focus on compound movements and high-intensity intervals."
+                        context_sentence = " For weight loss with a busy schedule, do 2-3 short strength sessions (20-30 min) plus daily walking. Focus on compound movements and high-intensity intervals."
                     else:
-                        context_sentence = " For weight loss, combine strength training with cardio. Start with 2-3 strength sessions per week plus 2-3 cardio sessions."
+                        context_sentence = " For weight loss, do 2-3 strength sessions per week plus 2-3 cardio sessions. Maintain a 300-500 calorie deficit."
                 elif 'maintenance' in context['goals']:
-                    context_sentence = " For maintenance, focus on 2-3 strength training sessions per week to maintain muscle mass and strength."
+                    context_sentence = " For maintenance, do 2-3 strength training sessions per week to maintain muscle mass and strength. Eat at your maintenance calories."
                 elif 'general_health' in context['goals']:
-                    context_sentence = " For general health, aim for 2-3 strength training sessions plus 2-3 cardio sessions per week. Walking daily is excellent for overall wellness."
+                    context_sentence = " For general health, do 2-3 strength training sessions plus 2-3 cardio sessions per week. Walking daily is excellent for overall wellness."
                 else:
-                    context_sentence = " Start with 2-3 strength training sessions per week, focusing on proper form and compound movements."
+                    context_sentence = " Do 2-3 strength training sessions per week focusing on compound movements and proper form."
             elif context['fitness_level'] == 'beginner':
                 if 'gym' in context['access_equipment']:
-                    context_sentence = " As a beginner with gym access, start with 2-3 strength training days per week focusing on compound lifts and proper form."
+                    context_sentence = " As a beginner with gym access, do 2-3 strength training days per week focusing on compound lifts and proper form."
                 else:
-                    context_sentence = " As a beginner, start with 2-3 strength training days per week using bodyweight exercises and resistance bands."
+                    context_sentence = " As a beginner, do 2-3 strength training days per week using bodyweight exercises and resistance bands."
             elif context['injuries_limitations']:
-                context_sentence = " Given your physical considerations, focus on low-impact exercises and proper form. Consider consulting a physical therapist for personalized guidance."
+                context_sentence = " Given your physical considerations, do low-impact exercises and focus on proper form. Consider consulting a physical therapist for personalized guidance."
             elif context['time_availability'] == 'very_busy':
-                context_sentence = " With your busy schedule, focus on efficient workouts: 2-3 short strength sessions (20-30 min) plus daily walking. Compound movements give you the most bang for your buck."
+                context_sentence = " With your busy schedule, do efficient workouts: 2-3 short strength sessions (20-30 min) plus daily walking. Compound movements give you the most bang for your buck."
         
         # Fall back to RAG content if available
         if not context_sentence and retrieved:
@@ -888,25 +895,35 @@ class RAGService:
         if not context_sentence:
             if re.search(r'frequency|how often|days|week', user_message, re.I):
                 if context.get('fitness_level') == 'beginner':
-                    context_sentence = " Start with 2-3 full-body strength training days per week. Focus on compound movements like squats, deadlifts, and push-ups."
+                    context_sentence = " Do 2-3 full-body strength training days per week. Focus on compound movements like squats, deadlifts, and push-ups."
                 else:
-                    context_sentence = " Aim for 3-4 training days per week, alternating between strength and cardio. Listen to your body and adjust based on recovery."
+                    context_sentence = " Do 3-4 training days per week, alternating between strength and cardio. Listen to your body and adjust based on recovery."
             elif re.search(r'nutrition|eat|diet|protein', user_message, re.I):
                 if profile.get('weight_kg'):
                     weight_lb = round(profile['weight_kg'] / 0.4536)
                     protein_target = int(weight_lb * 0.8)
-                    context_sentence = f" Focus on protein ({protein_target}g daily), complex carbs, and healthy fats. Eat in a slight calorie deficit for weight loss or maintenance for muscle building."
+                    context_sentence = f" Get {protein_target}g of protein daily, along with complex carbs and healthy fats. For weight loss, eat in a 300-500 calorie deficit. For muscle building, eat at maintenance or a slight surplus."
                 else:
-                    context_sentence = " Focus on protein (0.8-1g per pound bodyweight), complex carbs, and healthy fats. Eat in a slight calorie deficit for weight loss or maintenance for muscle building."
+                    context_sentence = " Get 0.8-1g of protein per pound of bodyweight daily, along with complex carbs and healthy fats. For weight loss, eat in a 300-500 calorie deficit. For muscle building, eat at maintenance or a slight surplus."
             elif re.search(r'form|injury|hurt|pain', user_message, re.I):
                 context_sentence = " Focus on proper form over weight. Start with lighter weights and perfect your technique before progressing. Consider working with a trainer initially."
             elif re.search(r'cardio|running|walking', user_message, re.I):
                 if context.get('fitness_level') == 'beginner':
-                    context_sentence = " Start with 20-30 minutes of moderate cardio 2-3 times per week. Walking, cycling, or swimming are great beginner options."
+                    context_sentence = " Do 20-30 minutes of moderate cardio 2-3 times per week. Walking, cycling, or swimming are great beginner options."
                 else:
-                    context_sentence = " Include 2-4 cardio sessions per week, mixing steady-state and interval training. Adjust intensity based on your fitness level."
+                    context_sentence = " Do 2-4 cardio sessions per week, mixing steady-state and interval training. Adjust intensity based on your fitness level."
+            elif re.search(r'muscle|build muscle|strength|stronger', user_message, re.I):
+                if context.get('fitness_level') == 'beginner':
+                    context_sentence = " For building muscle as a beginner, do 2-3 full-body strength days per week. Focus on compound movements: squats, deadlifts, bench press, rows, and overhead press. Do 3-4 sets of 8-12 reps with proper form."
+                else:
+                    context_sentence = " For muscle building, focus on progressive overload with compound movements. Train each muscle group 2-3 times per week with 3-4 sets of 6-12 reps. Ensure adequate protein intake and recovery."
+            elif re.search(r'workout|routine|plan', user_message, re.I):
+                if context.get('fitness_level') == 'beginner':
+                    context_sentence = " Here's a simple beginner routine: Day 1 - Squats, push-ups, rows (3x8-12 each). Day 2 - Rest or light walking. Day 3 - Deadlifts, overhead press, planks (3x8-12 each). Day 4 - Rest. Day 5 - Repeat Day 1. Focus on form and gradually increase weight."
+                else:
+                    context_sentence = " Consider a push/pull/legs split or upper/lower split. Train 4-5 days per week with 1-2 rest days. Focus on compound movements and progressive overload. Include 1-2 cardio sessions for conditioning."
             else:
-                context_sentence = " Start with 2-3 strength training sessions per week focusing on compound movements and proper form."
+                context_sentence = " Do 2-3 strength training sessions per week focusing on compound movements and proper form. Include 2-3 cardio sessions and prioritize protein intake for muscle building or weight loss."
         
         # Remove the generic follow-up question and make it more actionable
         return (base + context_sentence).strip()
@@ -938,36 +955,36 @@ class RAGService:
         
         # Fitness level guidance
         if context.get('fitness_level') == 'beginner':
-            guidance_parts.append("As a beginner, you'll want to start gradually with your fitness routine.")
+            guidance_parts.append("As a beginner, start with 2-3 full-body strength training days per week.")
         elif context.get('fitness_level') == 'intermediate':
-            guidance_parts.append("With your fitness experience, you can handle a more structured approach.")
+            guidance_parts.append("With your experience, you can handle 3-4 training days per week with more structured programming.")
         
         # Goal-based guidance
         if context.get('goals'):
             if 'weight_loss' in context['goals']:
-                guidance_parts.append("For weight loss, we'll focus on creating a sustainable calorie deficit.")
+                guidance_parts.append("For weight loss, combine strength training with cardio and maintain a 300-500 calorie deficit.")
             elif 'muscle_building' in context['goals']:
-                guidance_parts.append("For building muscle, we'll ensure adequate protein and progressive overload.")
+                guidance_parts.append("For muscle building, focus on progressive overload and eat at maintenance or a slight surplus.")
             elif 'maintenance' in context['goals']:
-                guidance_parts.append("For maintenance, we'll find your sweet spot to maintain current progress.")
+                guidance_parts.append("For maintenance, focus on consistent training and eating at your maintenance calories.")
         
         # Equipment guidance
         if context.get('access_equipment'):
             if 'gym' in context['access_equipment']:
-                guidance_parts.append("Great that you have gym access - this gives us many training options.")
+                guidance_parts.append("With gym access, focus on compound movements like squats, deadlifts, and bench press.")
             elif 'home' in context['access_equipment']:
-                guidance_parts.append("With home equipment, we can create effective workouts without leaving home.")
+                guidance_parts.append("At home, use bodyweight exercises and resistance bands for effective workouts.")
             elif 'minimal' in context['access_equipment']:
-                guidance_parts.append("We can definitely work with minimal equipment - bodyweight exercises are excellent.")
+                guidance_parts.append("Bodyweight exercises like push-ups, squats, and planks are excellent for building strength.")
         
         # Time availability guidance
         if context.get('time_availability') == 'very_busy':
-            guidance_parts.append("I understand you're busy - we'll focus on efficient, time-effective workouts.")
+            guidance_parts.append("With limited time, focus on compound movements that work multiple muscle groups efficiently.")
         
         # Combine guidance
         if guidance_parts:
             return " ".join(guidance_parts)
         else:
-            return "I can help you create a personalized fitness plan based on your goals and preferences."
+            return "I can help you create a personalized fitness plan. Let me know your goals and I'll provide specific recommendations."
 
 rag_service = RAGService()

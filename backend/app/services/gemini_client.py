@@ -98,7 +98,7 @@ def extract_tdee_from_text(user_text: str) -> dict:
     Missing values are null.
     """
     prompt = f"""
-You are a fitness and nutrition assistant. Carefully extract the following from the user's combined chat history:
+You are a fitness and nutrition assistant. Extract the following from the user's combined chat history:
 - sex (male/female)
 - age (years)
 - weight (kg)

@@ -14,7 +14,7 @@ def test_missing_api_key_fallback(client: TestClient, force_fallback):
     data = resp.json()
     assert resp.status_code == 200
     assert data["intent"] == "general"
-    assert "I am in simple mode" in data["response"]
+    assert "Here's what I can tell you:" in data["response"]
 
 
 def test_progressive_tdee_completion(client: TestClient, force_fallback):

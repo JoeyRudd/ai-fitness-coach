@@ -252,7 +252,7 @@ const emit = defineEmits<{ messageSent: [message: string]; responseReceived: [re
 const userInput = ref('');
 const loading = ref(false);
 const history = ref<HistoryTurn[]>([
-  { role: 'assistant', content: 'Hi. Ask me anything about simple fitness.' }
+  { role: 'assistant', content: 'Hey! How can I help you with your fitness today?' }
 ]);
 const profile = ref<BackendResponse['profile']>({ sex: null, age: null, weight_kg: null, height_cm: null, activity_factor: null });
 const tdeeData = ref<BackendResponse['tdee'] | null>(null);
