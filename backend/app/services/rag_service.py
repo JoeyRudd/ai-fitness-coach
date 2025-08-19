@@ -144,6 +144,11 @@ class RAGService:
 
     def get_ai_response(self, history: List[ChatMessage]) -> HistoryChatResponse:
         profile = self._rebuild_profile(history)
+        # Persist the most recent profile for prompt builders that reference it
+        try:
+            setattr(self, 'last_profile', dict(profile))
+        except Exception:
+            pass
         user_turns = [t for t in history if t.role == 'user']
         # Only intercept protein questions if there is at least one user message
         if user_turns:
@@ -789,6 +794,9 @@ class RAGService:
 
         # General intent
         simple_q = any(w in msg for w in ["what is", "how do i", "how to", "when should i"])
+        if ("exercise" in msg or "exercises" in msg):
+            # For exercise recommendation questions, allow more space to list specific items
+            return "medium"
         if len(msg) <= 60 and ("?" in msg or simple_q):
             return "short"
 
@@ -869,7 +877,7 @@ class RAGService:
             f"7. Vary your language naturally - don't use repetitive phrases\n"
             f"8. Be direct and confident - provide concrete numbers and specific advice when possible\n"
             f"9. NEVER reference training schedules, routines, or plans that aren't explicitly mentioned in the conversation or user profile\n"
-            f"10. If the context contains specific exercise names, use those exact names instead of generic terms\n"
+            f"10. If the user asks for exercises, list 4–8 specific exercises from the context, using their exact names (e.g., 'Flat wide grip chest press').\n"
             f"{profile_text}"
             f"{conversation_context}\n"
             f"Use the user profile and conversation context above for any calculations or advice. Do not ask for information that is already present.\n"
@@ -938,7 +946,8 @@ class RAGService:
     def _fallback_general(self, user_message: str, retrieved: List[str], profile: Dict[str, Any], history: List[ChatMessage] = None) -> str:
         base = "Here's what I can tell you:"
         context_sentence = ''
-        
+        # Always have a context dict for later conditional logic
+        context: Dict[str, Any] = {}
         # Use conversation context to provide more personalized fallback responses
         if history:
             context = self._extract_conversation_context(history)
@@ -971,7 +980,34 @@ class RAGService:
             elif context['time_availability'] == 'very_busy':
                 context_sentence = " With your busy schedule, do efficient workouts: 2-3 short strength sessions (20-30 min) plus daily walking. Compound movements give you the most bang for your buck."
         
-        # Fall back to RAG content if available
+        # If the user is asking for exercises, try to surface specific items from the KB
+        low_msg = (user_message or '').lower()
+        if not context_sentence and ("exercise" in low_msg or "exercises" in low_msg) and retrieved:
+            # Parse exercise lines of the form "**Muscle**: Exercise - ..."
+            found: list[str] = []
+            seen_pairs: set[str] = set()
+            for blob in retrieved:
+                # Work line-by-line to pick out category:name pairs
+                for line in blob.splitlines():
+                    line = line.strip()
+                    m = re.match(r"^\*\*(.*?)\*\*\s*:\s*([^\-\n\r]+)", line)
+                    if m:
+                        muscle = m.group(1).strip()
+                        exercise = m.group(2).strip()
+                        key = f"{muscle}|{exercise}"
+                        if key in seen_pairs:
+                            continue
+                        seen_pairs.add(key)
+                        found.append(f"{exercise} ({muscle})")
+                        if len(found) >= 8:
+                            break
+                if len(found) >= 8:
+                    break
+            if found:
+                items = ", ".join(found[:6])
+                context_sentence = f" From my knowledge base, great beginner-friendly picks include: {items}."
+        
+        # Fall back to a generic snippet from RAG if nothing else was formed
         if not context_sentence and retrieved:
             first = retrieved[0].strip().replace('\n', ' ')
             m = re.split(r'[.!?]', first)
