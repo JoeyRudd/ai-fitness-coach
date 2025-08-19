@@ -78,10 +78,29 @@ class Chunk:
     idx: int
 
 # --------------------------- Constants ---------------------------
-CHUNK_SIZE = 800
-CHUNK_OVERLAP = 120
+CHUNK_SIZE = 900
+CHUNK_OVERLAP = 150
 MAX_CHUNK_HARD = 1200
 _SENT_SPLIT = re.compile(r"(?<=[.!?])\s+(?=[A-Z])")
+
+SYNONYMS = {
+    "tdee": ["maintenance calories", "daily burn"],
+    "cut": ["deficit", "weight loss"],
+    "bulk": ["surplus", "gain muscle", "hypertrophy"],
+    "protein": ["protein intake", "macros"],
+    "workout": ["routine", "program", "plan"],
+    "cardio": ["aerobic", "conditioning"],
+}
+
+def _expand_query(q: str) -> str:
+    ql = q.lower()
+    extra = []
+    for k, vs in SYNONYMS.items():
+        if k in ql:
+            extra.extend(vs)
+    return q if not extra else f"{q} " + " ".join(extra)
+
+logger = logging.getLogger(__name__)
 
 class RAGIndex:
     """Lightweight embedding + FAISS index for local markdown knowledge base.
@@ -187,6 +206,12 @@ class RAGIndex:
             for i, txt in enumerate(assembled):
                 if len(txt) > MAX_CHUNK_HARD:
                     txt = txt[:MAX_CHUNK_HARD]
+                h1 = re.search(r"^#\s+(.+)", raw, re.M)
+                h2 = re.search(r"^##\s+(.+)", raw, re.M)
+                title = h1.group(1).strip() if h1 else Path(doc.path).stem
+                subtitle = h2.group(1).strip() if h2 else ""
+                header = f"{title} — {subtitle}" if subtitle else title
+                txt = f"{header}\n{txt}".strip()
                 chunks.append(Chunk(doc_path=doc.path, text=txt.strip(), idx=i))
         # Optional de-duplication
         seen: Dict[str, int] = {}
@@ -218,7 +243,13 @@ class RAGIndex:
             
             # Try TF-IDF first (fast and lightweight)
             if TfidfVectorizer is not None and cosine_similarity is not None:
-                self._model = TfidfVectorizer(max_features=1000, stop_words='english', ngram_range=(1, 2))
+                self._model = TfidfVectorizer(
+                    max_features=5000,
+                    stop_words='english',
+                    ngram_range=(1, 2),
+                    sublinear_tf=True,
+                    max_df=0.9
+                )
                 self._embeddings = self._model.fit_transform(texts)
                 self._ready = True
                 self._built = True
@@ -267,9 +298,10 @@ class RAGIndex:
             if not self._ready:
                 return []
         if not self._model or self._embeddings is None:
-            return []
+            return self._keyword_fallback(query, k)
         
         try:
+            query = _expand_query(query)
             # TF-IDF approach
             if hasattr(self._model, 'transform'):  # TfidfVectorizer
                 q_vec = self._model.transform([query])
@@ -314,5 +346,22 @@ class RAGIndex:
         except Exception as e:  # noqa: BLE001
             logger.warning("Retrieval failed: %s", e)
             return []
+
+    def _keyword_fallback(self, query: str, k: int) -> List[Dict[str, str]]:
+        q_terms = [t for t in re.findall(r"\w+", query.lower()) if len(t) > 2]
+        if not q_terms or not self._chunks:
+            return []
+        scored = []
+        for i, c in enumerate(self._chunks):
+            text = c.text.lower()
+            score = sum(text.count(t) for t in q_terms)
+            if score:
+                scored.append((score, i))
+        scored.sort(reverse=True)
+        results = []
+        for _, i in scored[:k]:
+            ch = self._chunks[i]
+            results.append({"text": ch.text, "source": Path(ch.doc_path).name})
+        return results
 
 __all__ = ["RAGIndex"]
