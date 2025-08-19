@@ -306,6 +306,16 @@ class RAGIndex:
             if hasattr(self._model, 'transform'):  # TfidfVectorizer
                 q_vec = self._model.transform([query])
                 scores = cosine_similarity(q_vec, self._embeddings).flatten()
+                # Small boost when query terms appear in the chunk header line
+                try:
+                    header_terms = set(re.findall(r"\w+", (query or "").lower()))
+                    if header_terms is not None and len(header_terms) > 0:
+                        for i in range(len(self._chunks)):
+                            first_line = self._chunks[i].text.split("\n", 1)[0].lower()
+                            if any(t in first_line for t in header_terms):
+                                scores[i] *= 1.12
+                except Exception:  # noqa: BLE001
+                    pass
                 if len(scores) == 0:
                     return []
                 topk = min(k, len(scores))

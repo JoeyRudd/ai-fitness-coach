@@ -311,7 +311,10 @@ class RAGService:
         retrieved: List[Dict[str, str]] = []
         try:
             if hasattr(self, '_rag_index') and self._rag_index is not None:
-                retrieved = self._rag_index.retrieve(last_user, k=settings.max_retrieval_chunks)  # type: ignore
+                # Dynamic k: short queries benefit from a slightly larger k
+                q_words = len((last_user or "").split())
+                dyn_k = 5 if q_words <= 3 else settings.max_retrieval_chunks
+                retrieved = self._rag_index.retrieve(last_user, k=dyn_k)  # type: ignore
                 logger.info("RAG retrieval successful: %d results for query '%s'", len(retrieved), last_user)
                 for i, r in enumerate(retrieved):
                     logger.info("Retrieved %d: [%s] %s...", i, r['source'], r['text'][:100])
@@ -327,6 +330,7 @@ class RAGService:
                 chunk_text = r['text'].strip()
                 if len(chunk_text) > 500:
                     chunk_text = chunk_text[:500] + '...'
+                # Prefix with bracketed source so the model can optionally cite
                 context_lines.append(f"[{r['source']}] {chunk_text}")
             retrieved_strings = context_lines
 
@@ -878,6 +882,7 @@ class RAGService:
             f"8. Be direct and confident - provide concrete numbers and specific advice when possible\n"
             f"9. NEVER reference training schedules, routines, or plans that aren't explicitly mentioned in the conversation or user profile\n"
             f"10. If the user asks for exercises, list 4–8 specific exercises from the context, using their exact names (e.g., 'Flat wide grip chest press').\n"
+            f"11. When helpful, reference the bracketed source filename from the Context to ground your advice.\n"
             f"{profile_text}"
             f"{conversation_context}\n"
             f"Use the user profile and conversation context above for any calculations or advice. Do not ask for information that is already present.\n"
