@@ -1,5 +1,10 @@
 # Optimal Nutrition for Fitness Success
 
+## TL;DR
+Good nutrition is the foundation: set calories to your goal (cut/maintain/bulk) and hit protein daily.
+
+Search terms: TDEE, maintenance calories, protein target, calorie deficit, surplus
+
 Good nutrition is the foundation of any successful fitness journey. Here's what you need to know to fuel your body properly.
 
 ## Calorie Goals Based on Your Body Composition

@@ -1,5 +1,10 @@
 # Training Intensity: How Hard Should You Push?
 
+## TL;DR
+Use RIR (reps in reserve). For strength and muscle, most sets should finish around 0–2 RIR with strict form.
+
+Search terms: RIR, intensity, effort, form
+
 Understanding the right intensity for your workouts is crucial for making progress while staying safe and avoiding injury.
 
 ## What is RIR (Reps in Reserve)?

@@ -1,5 +1,10 @@
 # Strength Training Basics for Muscle Building
 
+## TL;DR
+Master form first. Use the listed beginner machine exercises, work mostly in the **7–10 rep** range, and progress gradually.
+
+Search terms: beginner exercises, 7-10 reps, machine-based, form, progressive overload
+
 Strength training is the foundation of building muscle and improving your body composition. For beginners, the key is choosing the right exercises and mastering proper form before worrying about heavy weights.
 
 ## The Best Beginner Exercises for Each Muscle Group

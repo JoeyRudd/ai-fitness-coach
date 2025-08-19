@@ -1,5 +1,11 @@
 # How Often Should I Work Out?
 
+## TL;DR
+This is one of the first questions everyone asks, and the answer is simpler than you think.
+For someone new to a structured fitness routine, a great goal is **2 to 3 times per muscle group per week**.
+
+Search terms: full body, upper body, lower body, frequency, rest days
+
 This is one of the first questions everyone asks, and the answer is simpler than you think. The golden rule is that **consistency is far more important than intensity**, especially when you're starting out.
 
 ## The Sweet Spot for Beginners
