@@ -11,7 +11,7 @@ Good nutrition is the foundation of any successful fitness journey. Here's what 
 - Expect to lose 1-2 pounds per week safely
 
 **Low body fat (wanting to gain muscle)**
-- Aim for a 300-500 calorie surplus per day
+- Aim for a 200-300 calorie surplus per day
 - This means eating slightly more than your body burns
 - Combine with strength training for best results
 - Weight gain should be gradual and mostly muscle
@@ -24,7 +24,7 @@ Good nutrition is the foundation of any successful fitness journey. Here's what 
 ## Protein: Your Muscle-Building Friend
 
 - Eat 0.8-1g of protein per pound of body weight daily
-- Good sources: chicken, fish, eggs, beans, Greek yogurt, lean beef
+- Good sources: chicken, fish, eggs, Greek yogurt, whey isolate, lean beef
 - Spread protein throughout the day for best results
 - Don't stress about perfect timing - consistency matters most
 
