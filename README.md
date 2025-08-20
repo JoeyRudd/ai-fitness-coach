@@ -13,14 +13,19 @@ A simple, user-friendly AI-powered fitness and nutrition coach application desig
 - Interactive chat interface with real-time responses
 - Safety-first approach with doctor consultation recommendations
 - Responsive design with TailwindCSS
+- **NEW: Enhanced workout split guidance** - Specific schedules and exercise recommendations
+- **NEW: BM25 retrieval support** - Better handling of short queries and workout-related questions
 
 ## Tech Stack
 
 ### Backend
 - **FastAPI** - Modern, fast web framework for building APIs
 - **Google Gemini (google-generativeai)** - LLM for responses
-- **TF-IDF (scikit-learn)** is the default for chunk embedding and retrieval (fast, lightweight, no external dependencies).
-- If the simple word-matching method (TF-IDF) isn't available, the system tries a more advanced way to understand meaning. All searching happens quickly and locally. Extra tools are only used if your knowledge base gets very large (over 5,000 pieces of information).
+- **Hybrid RAG System**:
+  - **BM25 (rank-bm25)** - Primary retrieval method for short queries and workout questions
+  - **TF-IDF (scikit-learn)** - Fallback for chunk embedding and retrieval (fast, lightweight)
+  - **Sentence Transformers** - Advanced semantic search when available
+- All searching happens quickly and locally with intelligent fallbacks
 
 ### Frontend
 - **Vue 3** - Progressive JavaScript framework with Composition API
@@ -50,9 +55,14 @@ hypertrofit/
 │   ├── package.json             # Node.js dependencies
 │   └── vite.config.ts           # Vite configuration
 ├── knowledge_base/              # Fitness knowledge content (for RAG)
-│   ├── 01_training_frequency.md
+│   ├── 01_training_frequency.md # Workout splits, training frequency, schedules
 │   ├── 02_training_intensity.md
-│   └── 03_optimal_nutrition.md
+│   ├── 03_optimal_nutrition.md
+│   ├── 04_strength_training_basics.md # Beginner exercises, workout organization
+│   ├── 05_cardio_fundamentals.md
+│   ├── 06_recovery_rest.md
+│   ├── 07_goal_setting_motivation.md
+│   └── 08_faq.md
 └── rules.md                     # Development guidelines
 ```
 
@@ -63,6 +73,7 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 - Safety-first recommendations
 - Clear, actionable steps
 - No overwhelming technical jargon
+- **Specific workout guidance** - Full body splits, schedules, exercise recommendations
 
 ## Environment Variables
 
@@ -81,24 +92,41 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 - **API Layer:** FastAPI app (`backend/app/main.py`) mounting versioned routers (`api/v1/endpoints/chat.py`).
 - **Models:** Pydantic data models in `models/chat.py` standardize message, profile, and response payloads.
 - **Services Layer:**
-  - `rag_service.RAGService`: Intent detection (TDEE vs general), profile extraction, recall, TDEE calculation, RAG grounding, LLM call / fallback.
-  - `rag_index.RAGIndex`: Loads markdown, chunks, and by default uses TF-IDF (scikit-learn) for chunk embedding and retrieval. If unavailable, falls back to sentence-transformers (MiniLM) with NumPy or FAISS for similarity (all in memory, no external DB by default).
+  - `rag_service.RAGService`: Intent detection (TDEE vs general), profile extraction, recall, TDEE calculation, RAG grounding, LLM call / fallback, **workout split detection and fallback responses**.
+  - `rag_index.RAGIndex`: Loads markdown, chunks, and uses **BM25 as primary retrieval method** for better short query handling. Falls back to TF-IDF (scikit-learn) or sentence-transformers (MiniLM) with NumPy/FAISS for similarity.
   - `profile_logic.py`: Fact extraction & calculations.
   - `gemini_client.py`: Gemini SDK wrapper with simple generation call.
-- **Knowledge Base:** Local markdown sources in `knowledge_base/` ground general fitness answers.
-- **Fallback Logic:** If LLM not configured, deterministic supportive responses.
+- **Knowledge Base:** Local markdown sources in `knowledge_base/` ground general fitness answers with **comprehensive workout split information**.
+- **Fallback Logic:** If LLM not configured, deterministic supportive responses with **specific workout split guidance**.
 
 ## RAG Retrieval Flow
 1. Load markdown docs from `knowledge_base/` (recursive).
 2. Chunk into ~800 char windows with overlap.
-3. By default, embed chunks using TF-IDF (scikit-learn). If unavailable, use sentence-transformers (MiniLM) with normalization.
-4. Store chunk vectors in memory (TF-IDF matrix or embedding matrix; no FAISS, no external DB).
-5. On user query (non-TDEE):
-  - If TF-IDF is available, embed query and compute cosine similarity with chunk TF-IDF vectors.
-  - If not, use sentence-transformers to embed and compare with chunk embeddings (NumPy or FAISS).
-6. Select top k chunks.
-7. Inject context block into prompt (sources + truncated text) with anti-hallucination guidance ("If you don't know, say so").
-8. Fallback: If Gemini is not configured, return deterministic supportive responses.
+3. **Primary: BM25 indexing** for optimal short query and workout question handling.
+4. **Fallback 1:** TF-IDF (scikit-learn) for chunk embedding and retrieval.
+5. **Fallback 2:** Sentence transformers (MiniLM) with normalization.
+6. Store chunk vectors in memory (no external DB).
+7. On user query (non-TDEE):
+   - **BM25 retrieval** for workout split questions and short queries
+   - **Hybrid retrieval** combining multiple methods for optimal results
+   - **Workout split detection** with specialized fallback responses
+8. Inject context block into prompt with anti-hallucination guidance.
+9. **Enhanced fallback:** Deterministic supportive responses with specific workout split schedules and exercise recommendations.
+
+## New Features
+
+### Enhanced Workout Split Guidance
+- **Full Body Split**: Monday/Wednesday/Friday schedule with rest days
+- **Upper/Lower Split**: 4-day training schedule for intermediate beginners
+- **Push/Pull/Legs**: 6-day advanced split for experienced lifters
+- **Specific Exercise Recommendations**: leg press, chest press, lat pulldown, shoulder press
+- **Progression Paths**: Clear guidance on when to advance to more complex splits
+
+### BM25 Retrieval System
+- **Better Short Query Handling**: Improved retrieval for workout-related questions
+- **Hybrid Search**: Combines BM25 with traditional methods for optimal results
+- **Workout Split Detection**: Automatically identifies and responds to workout split questions
+- **Intelligent Fallbacks**: Provides helpful guidance even when RAG retrieval doesn't find optimal content
 
 ## Local Development
 
@@ -119,6 +147,13 @@ npm run dev
 ```
 make test
 ```
+
+## Recent Updates
+
+- **Workout Split Enhancements**: Added comprehensive workout split guidance with specific schedules and exercise recommendations
+- **BM25 Integration**: Implemented BM25 retrieval for better short query handling
+- **Improved RAG Service**: Enhanced prompt construction and fallback responses for workout questions
+- **Knowledge Base Expansion**: Added detailed workout split information and training frequency guidance
 
 
 
