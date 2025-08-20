@@ -314,7 +314,8 @@ class RAGService:
                 # Dynamic k: short queries benefit from a slightly larger k
                 q_words = len((last_user or "").split())
                 dyn_k = 5 if q_words <= 3 else settings.max_retrieval_chunks
-                retrieved = self._rag_index.retrieve(last_user, k=dyn_k)  # type: ignore
+                # Use hybrid RRF retrieval for better results
+                retrieved = self._rag_index.hybrid_retrieve(last_user, k=dyn_k)  # type: ignore
                 logger.info("RAG retrieval successful: %d results for query '%s'", len(retrieved), last_user)
                 for i, r in enumerate(retrieved):
                     logger.info("Retrieved %d: [%s] %s...", i, r['source'], r['text'][:100])
