@@ -344,6 +344,12 @@ class RAGService:
             conversation_context.get('access_equipment') or
             any(profile.values())  # Has any profile information
         )
+        
+        # Special handling for workout split questions - these should always get specific guidance
+        is_workout_split_question = any(term in (last_user or "").lower() for term in [
+            "workout split", "training split", "split", "routine", "schedule", "full body", 
+            "upper lower", "push pull", "ppl", "how often", "frequency", "workout", "training"
+        ])
 
         # Deterministic fallback path when no model configured
         if intent != 'tdee' and not self._model:
@@ -352,10 +358,26 @@ class RAGService:
 
         # If we have sufficient context, be more directive about not asking questions
         if has_sufficient_context:
-            prompt = self._build_prompt_general(last_user, retrieved, history)
+            prompt = self._build_prompt_general(last_user, retrieved, history, is_workout_split_question)
         else:
             # For users with minimal context, still try to be helpful but may need to ask clarifying questions
-            prompt = self._build_prompt_general(last_user, retrieved, history)
+            prompt = self._build_prompt_general(last_user, retrieved, history, is_workout_split_question)
+        
+        # Special handling for workout split questions when RAG fails or doesn't find relevant content
+        if is_workout_split_question:
+            # Check if RAG found workout split specific content
+            has_workout_split_content = any(
+                any(term in r.get('text', '').lower() for term in [
+                    'workout split', 'training split', 'full body', 'upper lower', 'push pull', 'ppl',
+                    'monday', 'wednesday', 'friday', 'schedule', 'routine'
+                ])
+                for r in retrieved
+            )
+            
+            if not retrieved or not has_workout_split_content:
+                # Provide specific workout split guidance when RAG doesn't find relevant content
+                workout_split_response = self._get_workout_split_fallback(last_user)
+                return HistoryChatResponse(response=workout_split_response, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
         
         model_reply = self._generate_response(prompt)
         # Strip cliché safety lines unless the user asked about safety/pain
@@ -812,7 +834,7 @@ class RAGService:
 
         return "medium"
 
-    def _build_prompt_general(self, user_message: str, retrieved: List[Dict[str, str]], history: List[ChatMessage] = None) -> str:
+    def _build_prompt_general(self, user_message: str, retrieved: List[Dict[str, str]], history: List[ChatMessage] = None, is_workout_split_question: bool = False) -> str:
         context_block = ""
         if retrieved:
             safe_chunks = []
@@ -824,6 +846,10 @@ class RAGService:
                 safe_chunks.append(chunk_text)
             if safe_chunks:
                 context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + "\n\nCRITICAL: This context contains specific, expert fitness information. ALWAYS use the specific exercises, techniques, and advice mentioned in this context rather than generic fitness advice. If the context mentions specific exercises like 'Flat wide grip chest press' or 'Chest supported flared elbow row', use those exact names and details."
+                
+                # Special emphasis for workout split questions
+                if is_workout_split_question:
+                    context_block += "\n\nWORKOUT SPLIT FOCUS: When answering workout split questions, ALWAYS reference the specific workout splits mentioned in the context (Full Body, Upper/Lower, etc.) and provide the exact schedules and exercise recommendations from the knowledge base. Use the bracketed source filenames to ground your advice. If the context doesn't contain specific workout split information, supplement with the standard beginner recommendations: Full body 3x per week (Mon/Wed/Fri), Upper/Lower 4x per week, or Push/Pull/Legs 6x per week."
         # Always include user profile for general advice
         profile = getattr(self, 'last_profile', None)
         user_profile_lines = []
@@ -884,6 +910,7 @@ class RAGService:
             f"9. NEVER reference training schedules, routines, or plans that aren't explicitly mentioned in the conversation or user profile\n"
             f"10. If the user asks for exercises, list 4–8 specific exercises from the context, using their exact names (e.g., 'Flat wide grip chest press').\n"
             f"11. When helpful, reference the bracketed source filename from the Context to ground your advice.\n"
+            f"12. For workout split questions, ALWAYS provide the specific schedules and exercise recommendations from the knowledge base, including exact days and exercises. If the knowledge base doesn't contain specific workout split info, provide the standard beginner recommendations: Full body 3x per week (Mon/Wed/Fri with rest days), Upper/Lower 4x per week, or Push/Pull/Legs 6x per week.\n"
             f"{profile_text}"
             f"{conversation_context}\n"
             f"Use the user profile and conversation context above for any calculations or advice. Do not ask for information that is already present.\n"
@@ -949,6 +976,39 @@ class RAGService:
                 return f"Saved activity level is {name} (factor {f})."
         return f"Saved activity factor is {profile['activity_factor']}"
 
+    def _get_workout_split_fallback(self, user_message: str) -> str:
+        """Provide specific workout split guidance when RAG fails."""
+        low_msg = (user_message or "").lower()
+        
+        if any(term in low_msg for term in ["full body", "fullbody", "full-body"]):
+            return (
+                "For beginners, a full body split 3 times per week is perfect! "
+                "Do Monday, Wednesday, Friday with rest days between. "
+                "Include exercises for legs (leg press, squats), push (chest press, shoulder press), "
+                "pull (lat pulldown, rows), and core (planks). This hits all major muscle groups efficiently."
+            )
+        elif any(term in low_msg for term in ["upper lower", "upper/lower", "upper-lower"]):
+            return (
+                "Upper/Lower split works great for beginners with 4 days available! "
+                "Monday/Thursday: Upper body (chest, back, shoulders, arms). "
+                "Tuesday/Friday: Lower body (legs, glutes, calves). "
+                "Wednesday, Saturday, Sunday: Rest. This gives more focus per muscle group."
+            )
+        elif any(term in low_msg for term in ["push pull", "push/pull", "push-pull", "ppl"]):
+            return (
+                "Push/Pull/Legs (PPL) is for more advanced beginners with 6 days available. "
+                "Push days: chest, shoulders, triceps. Pull days: back, biceps. "
+                "Leg days: quads, hamstrings, glutes, calves. "
+                "Do each split twice per week with one rest day."
+            )
+        else:
+            return (
+                "For beginners, start with a full body split 3 times per week (Mon/Wed/Fri with rest days between). "
+                "This hits all major muscle groups efficiently and allows proper recovery. "
+                "Include compound movements like leg press, chest press, lat pulldown, and shoulder press. "
+                "As you progress, you can move to upper/lower (4 days) or push/pull/legs (6 days)."
+            )
+
     def _fallback_general(self, user_message: str, retrieved: List[str], profile: Dict[str, Any], history: List[ChatMessage] = None) -> str:
         base = "Here's what I can tell you:"
         context_sentence = ''
@@ -986,9 +1046,17 @@ class RAGService:
             elif context['time_availability'] == 'very_busy':
                 context_sentence = " With your busy schedule, do efficient workouts: 2-3 short strength sessions (20-30 min) plus daily walking. Compound movements give you the most bang for your buck."
         
-        # If the user is asking for exercises, try to surface specific items from the KB
+        # If the user is asking for exercises or workout splits, try to surface specific items from the KB
         low_msg = (user_message or '').lower()
-        if not context_sentence and ("exercise" in low_msg or "exercises" in low_msg) and retrieved:
+        is_workout_split_query = any(term in low_msg for term in [
+            "workout split", "training split", "split", "routine", "schedule", "full body", 
+            "upper lower", "push pull", "ppl", "how often", "frequency"
+        ])
+        
+        # Special handling for workout split questions
+        if is_workout_split_query and not context_sentence:
+            context_sentence = self._get_workout_split_fallback(user_message)
+        elif not context_sentence and (("exercise" in low_msg or "exercises" in low_msg) or is_workout_split_query) and retrieved:
             # Parse exercise lines of the form "**Muscle**: Exercise - ..."
             found: list[str] = []
             seen_pairs: set[str] = set()
@@ -1012,6 +1080,9 @@ class RAGService:
             if found:
                 items = ", ".join(found[:6])
                 context_sentence = f" From my knowledge base, great beginner-friendly picks include: {items}."
+            elif is_workout_split_query:
+                # Provide specific workout split guidance even without specific exercises
+                context_sentence = " For beginners, start with a full body split 3x per week (Mon/Wed/Fri) with rest days between. This hits all major muscle groups efficiently and allows proper recovery."
         
         # Fall back to a generic snippet from RAG if nothing else was formed
         if not context_sentence and retrieved:
@@ -1025,7 +1096,7 @@ class RAGService:
         if not context_sentence:
             if re.search(r'frequency|how often|days|week', user_message, re.I):
                 if context.get('fitness_level') == 'beginner':
-                    context_sentence = " Do 2-3 full-body strength training days per week. Focus on compound movements like leg press, chest press, and lat pulldown."
+                    context_sentence = " Do 2-3 full-body strength training days per week (Mon/Wed/Fri with rest days between). Focus on compound movements like leg press, chest press, and lat pulldown. This full body split hits all major muscle groups efficiently."
                 else:
                     context_sentence = " Do 3-4 training days per week, alternating between strength and cardio. Listen to your body and adjust based on recovery."
             elif re.search(r'nutrition|eat|diet|protein', user_message, re.I):
