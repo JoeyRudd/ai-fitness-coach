@@ -123,7 +123,7 @@
     <!-- Input Section - Fixed at bottom -->
     <div class="bg-gray-100 dark:bg-[#080e12]">
       <div class="w-full px-3 sm:px-6 py-3 sm:py-4">
-        <div class="relative">
+        <div class="relative max-w-4xl mx-auto">
           <textarea
             id="user-input"
             v-model="userInput"
@@ -144,7 +144,7 @@
         </div>
 
         <!-- Send button -->
-        <div class="flex justify-end items-center mt-3">
+        <div class="flex justify-end items-center mt-3 max-w-4xl mx-auto">
           <button
             @click="sendMessage"
             :disabled="loading || !userInput.trim() || (!!maxLength && userInput.length > maxLength)"
