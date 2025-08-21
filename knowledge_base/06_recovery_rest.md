@@ -1,10 +1,5 @@
 # Recovery & Rest: The Foundation of Progress
 
-## TL;DR
-Manage volume, take 3–4 rest days per week, and hit daily protein. Sleep quality directly impacts results.
-
-Search terms: rest days, sleep, volume, protein, recovery
-
 Recovery is where the magic happens - it's when your body actually builds muscle and gets stronger. Many beginners focus only on training hard, but proper recovery is what separates those who make progress from those who burn out.
 
 ## Top 3 Recovery Strategies for Beginners

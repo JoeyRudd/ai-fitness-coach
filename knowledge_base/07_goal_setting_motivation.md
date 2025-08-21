@@ -1,10 +1,5 @@
 # Goal Setting & Motivation: Building a Lifetime of Fitness
 
-## TL;DR
-Start small, be consistent, and enjoy the process. Sustainable habits beat extreme approaches.
-
-Search terms: motivation, consistency, restart, sustainable
-
 Success in fitness isn't about quick fixes or extreme approaches - it's about building sustainable habits that you can maintain for life. The key is finding enjoyment in the process while setting realistic expectations for your journey.
 
 ## Setting Realistic Fitness Goals

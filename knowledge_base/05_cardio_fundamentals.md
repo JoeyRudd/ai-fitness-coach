@@ -1,10 +1,5 @@
 # Cardio Fundamentals for Beginners
 
-## TL;DR
-Pick walking, elliptical, or biking. Keep it moderate and supportive of strength training.
-
-Search terms: walking, elliptical, biking, zone 2, NEAT
-
 Cardiovascular exercise is essential for overall health and recovery, but it's often misunderstood by beginners. The key is choosing accessible options and focusing on heart health rather than extreme calorie burning.
 
 ## Top 3 Beginner-Friendly Cardio Options

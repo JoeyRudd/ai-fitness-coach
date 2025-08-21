@@ -1006,7 +1006,6 @@ class RAGService:
                 "For beginners, start with a full body split 3 times per week (Mon/Wed/Fri with rest days between). "
                 "This hits all major muscle groups efficiently and allows proper recovery. "
                 "Include compound movements like leg press, chest press, lat pulldown, and shoulder press. "
-                "As you progress, you can move to upper/lower (4 days) or push/pull/legs (6 days)."
             )
 
     def _fallback_general(self, user_message: str, retrieved: List[str], profile: Dict[str, Any], history: List[ChatMessage] = None) -> str:
