@@ -3,9 +3,7 @@
         <!-- Header -->
         <div class="w-full bg-gray-100 dark:bg-[#080e12] flex-shrink-0">
             <div class="w-full px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-                <h1 class="text-xl sm:text-2xl font-bold text-gray-800 dark:text-gray-100">
-                    Hypertrofit
-                </h1>
+                <HypertrofitLogo />
                 
                 <!-- Theme Toggle (inline with header) -->
                 <button
@@ -36,15 +34,6 @@
                 @message-sent="onMessageSent"
                 @response-received="onResponseReceived"
             />
-        </div>
-
-        <!-- Connection Status - Fixed at bottom above input -->
-        <div
-            v-if="connectionStatus"
-            class="fixed bottom-20 sm:bottom-24 left-1/2 transform -translate-x-1/2 z-40 px-3 sm:px-4 py-2 rounded-lg text-xs sm:text-sm border shadow-lg max-w-[90vw] text-center"
-            :class="connectionStatusClass"
-        >
-            {{ connectionStatus }}
         </div>
 
         <!-- Interaction History - Collapsible sidebar or modal -->
@@ -83,8 +72,9 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted } from "vue";
+import { ref, onMounted } from "vue";
 import ChatInterface from "./components/ChatInterface.vue";
+import HypertrofitLogo from "./components/HypertrofitLogo.vue";
 
 // Theme state and logic
 const isDark = ref(false);
@@ -115,21 +105,6 @@ interface Interaction {
 }
 
 const interactionHistory = ref<Interaction[]>([]);
-const connectionStatus = ref<string>("");
-
-// Computed class for connection status styling
-const connectionStatusClass = computed(() => {
-    if (
-        connectionStatus.value.includes("Error") ||
-        connectionStatus.value.includes("Failed")
-    ) {
-        return "bg-red-50 border-red-200 text-red-700 dark:bg-red-950/60 dark:border-red-900 dark:text-red-300";
-    } else if (connectionStatus.value.includes("Success")) {
-        return "bg-green-50 border-green-200 text-green-700 dark:bg-emerald-950/60 dark:border-emerald-900 dark:text-emerald-300";
-    } else {
-        return "bg-blue-50 border-blue-200 text-blue-700 dark:bg-sky-950/60 dark:border-sky-900 dark:text-sky-300";
-    }
-});
 
 // Helper function to add interaction
 const addInteraction = (type: string, message: string): void => {
@@ -141,18 +116,11 @@ const addInteraction = (type: string, message: string): void => {
 const onMessageSent = (message: string): void => {
     console.log("Message sent:", message);
     addInteraction("Message Sent", message);
-    connectionStatus.value = "Sending message to backend...";
 };
 
 const onResponseReceived = (response: string): void => {
     console.log("Response received:", response);
     addInteraction("Response Received", response);
-    connectionStatus.value = `Success! Received response (${response.length} characters)`;
-
-    // Clear status after 3 seconds
-    setTimeout(() => {
-        connectionStatus.value = "";
-    }, 3000);
 };
 </script>
 
