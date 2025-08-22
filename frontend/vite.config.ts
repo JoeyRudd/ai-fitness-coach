@@ -5,6 +5,7 @@ import vue from '@vitejs/plugin-vue'
 export default defineConfig({
   plugins: [vue()],
   server: {
+    host: true, // Expose to network for mobile testing
     proxy: {
       // Forward API calls during dev to FastAPI backend
       '/api': {
