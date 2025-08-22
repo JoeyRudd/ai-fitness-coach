@@ -34,6 +34,72 @@ A simple, user-friendly AI-powered fitness and nutrition coach application desig
 - **Axios** - HTTP client for API communication
 - **TypeScript** - Type-safe JavaScript
 
+## 🏗️ Architecture
+
+### System Overview
+```mermaid
+graph TB
+    A[👤 User] --> B[Frontend Vue.js]
+    B --> C[FastAPI Backend]
+    C --> D[Google Gemini LLM]
+    C --> E[RAG System]
+    E --> F[Knowledge Base]
+    E --> G[Profile Logic]
+    G --> H[TDEE Calculator]
+
+    B --> I[Real-time Chat]
+    C --> J[Workout Split Detection]
+
+    style A fill:#e1f5fe
+    style B fill:#f3e5f5
+    style C fill:#e8f5e8
+    style D fill:#fff3e0
+    style E fill:#fce4ec
+    style F fill:#f1f8e9
+```
+
+### Backend Architecture
+```mermaid
+graph TD
+    A[FastAPI Server] --> B[Chat Endpoint]
+    B --> C[RAG Service]
+    C --> D[BM25 Retrieval]
+    C --> E[TF-IDF Retrieval]
+    C --> F[Sentence Transformers]
+    D --> G[Markdown Knowledge Base]
+    E --> G
+    F --> G
+    C --> H[Gemini LLM]
+    C --> I[Profile Logic]
+    C --> J[TDEE Calculator]
+    I --> K[User Profiles]
+    J --> L[Caloric Estimates]
+
+    H --> M[AI Response]
+    M --> B
+```
+
+### Chat Flow
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant F as Frontend
+    participant B as Backend
+    participant R as RAG System
+    participant L as Gemini LLM
+    participant K as Knowledge Base
+
+    U->>F: Types fitness question
+    F->>B: POST /api/v1/chat
+    B->>R: Process query & extract profile
+    R->>K: Search relevant knowledge
+    K->>R: Return context chunks
+    R->>L: Generate response with context
+    L->>B: AI fitness advice
+    B->>F: Formatted response + profile data
+    F->>U: Display chat response
+```
+
 ## Project Structure
 
 ```
