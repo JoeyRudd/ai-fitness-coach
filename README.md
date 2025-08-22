@@ -7,6 +7,7 @@
 [![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-cyan.svg)](https://tailwindcss.com)
 [![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com)
 [![Railway](https://img.shields.io/badge/Deployed-Railway-purple.svg)](https://railway.app)
+[![PWA](https://img.shields.io/badge/PWA-Ready-brightgreen.svg)](https://web.dev/progressive-web-apps/)
 
 <!-- Test commit for Railway deployment -->
 
@@ -21,6 +22,44 @@ A simple, user-friendly AI-powered fitness and nutrition coach application desig
 - Responsive design with TailwindCSS
 - **NEW: Enhanced workout split guidance** - Specific schedules and exercise recommendations
 - **NEW: BM25 retrieval support** - Better handling of short queries and workout-related questions
+- **🎯 PWA Features**: Install as mobile app, offline access, and native app-like experience
+
+## Progressive Web App (PWA)
+
+Hypertrofit now supports Progressive Web App functionality, allowing users to install and use the app like a native mobile application.
+
+### PWA Capabilities
+
+- **📱 Install to Home Screen**: Add the app to your phone's home screen like a native app
+- **🔄 Offline Access**: Core functionality works without internet connection
+- **⚡ Fast Loading**: Service worker caches assets for instant loading
+- **📲 App-Like Experience**: Full-screen mode with no browser UI
+- **🔄 Auto-Updates**: App updates automatically in the background
+
+### PWA Installation
+
+**On Android/Chrome:**
+1. Open the app in Chrome browser
+2. Tap the menu (⋮) → "Add to Home Screen"
+3. Tap "Add" to install
+
+**On iOS/Safari:**
+1. Open the app in Safari browser
+2. Tap the Share button → "Add to Home Screen"
+3. Tap "Add" to install
+
+**After Installation:**
+- App icon appears on your home screen
+- Opens in standalone mode (no browser UI)
+- Works offline with cached content
+- Receives automatic updates
+
+### PWA Technical Implementation
+
+- **Manifest.json**: Defines app metadata, icons, and display preferences
+- **Service Worker**: Handles caching, offline functionality, and background updates
+- **PWA Meta Tags**: Enables mobile app-like behavior and theming
+- **Responsive Design**: Optimized for mobile devices and various screen sizes
 
 ## Tech Stack
 
@@ -41,6 +80,7 @@ A simple, user-friendly AI-powered fitness and nutrition coach application desig
 | Styling | TailwindCSS | Utility-first CSS framework |
 | HTTP Client | Axios | Promise-based API communication |
 | Language | TypeScript | Type-safe JavaScript development |
+| PWA Support | Service Worker + Manifest | App installation and offline functionality |
 | Deployment | Netlify | Global CDN with automatic HTTPS |
 
 ### Testing & Quality
@@ -80,6 +120,17 @@ ALLOWED_ORIGINS=http://localhost:5173
 
 # Frontend
 VITE_API_BASE=http://localhost:8000/api/v1
+```
+
+### PWA Development Testing
+For testing PWA features during development:
+```bash
+# Enable network access for mobile testing
+cd frontend
+npm run dev -- --host
+
+# Then access from mobile device at:
+# http://[YOUR_COMPUTER_IP]:5173
 ```
 
 ### Testing
@@ -317,6 +368,9 @@ make test
 
 ## Recent Updates
 
+- **PWA Implementation**: Added Progressive Web App functionality for mobile app-like experience
+- **Service Worker & Caching**: Implemented offline support and fast loading capabilities
+- **Add to Home Screen**: Users can now install the app like a native mobile application
 - **Workout Split Enhancements**: Added comprehensive workout split guidance with specific schedules and exercise recommendations
 - **BM25 Integration**: Implemented BM25 retrieval for better short query handling
 - **Improved RAG Service**: Enhanced prompt construction and fallback responses for workout questions
