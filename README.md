@@ -1,6 +1,12 @@
 # Hypertrofit
 
-[![CI/CD Pipeline](https://github.com/JoeyRudd/ai-fitness-coach/workflows/CI%2FCD%20Pipeline/badge.svg)](https://github.com/JoeyRudd/ai-fitness-coach/actions)
+[![CI/CD Pipeline](https://github.com/JoeyRudd/ai-fitness-coach/actions/workflows/ci.yml/badge.svg)](https://github.com/JoeyRudd/ai-fitness-coach/actions)
+[![Python](https://img.shields.io/badge/Python-3.11-blue.svg)](https://python.org)
+[![Vue.js](https://img.shields.io/badge/Vue.js-3.5-green.svg)](https://vuejs.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.100+-orange.svg)](https://fastapi.tiangolo.com)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4-cyan.svg)](https://tailwindcss.com)
+[![Docker](https://img.shields.io/badge/Docker-Ready-blue.svg)](https://docker.com)
+[![Railway](https://img.shields.io/badge/Deployed-Railway-purple.svg)](https://railway.app)
 
 <!-- Test commit for Railway deployment -->
 
@@ -19,20 +25,30 @@ A simple, user-friendly AI-powered fitness and nutrition coach application desig
 ## Tech Stack
 
 ### Backend
-- **FastAPI** - Modern, fast web framework for building APIs
-- **Google Gemini (google-generativeai)** - LLM for responses
-- **Hybrid RAG System**:
-  - **BM25 (rank-bm25)** - Primary retrieval method for short queries and workout questions
-  - **TF-IDF (scikit-learn)** - Fallback for chunk embedding and retrieval (fast, lightweight)
-  - **Sentence Transformers** - Advanced semantic search when available
-- All searching happens quickly and locally with intelligent fallbacks
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Framework | FastAPI | High-performance async API framework |
+| AI Model | Google Gemini | LLM for generating responses |
+| RAG System | BM25 + TF-IDF | Intelligent knowledge retrieval |
+| Data Models | Pydantic | Type-safe request/response validation |
+| Deployment | Railway + Docker | Cloud hosting with containerization |
 
 ### Frontend
-- **Vue 3** - Progressive JavaScript framework with Composition API
-- **Vite** - Fast build tool and development server
-- **TailwindCSS** - Utility-first CSS framework
-- **Axios** - HTTP client for API communication
-- **TypeScript** - Type-safe JavaScript
+| Component | Technology | Purpose |
+|-----------|------------|---------|
+| Framework | Vue 3 + Composition API | Modern reactive UI framework |
+| Build Tool | Vite | Fast development and optimized builds |
+| Styling | TailwindCSS | Utility-first CSS framework |
+| HTTP Client | Axios | Promise-based API communication |
+| Language | TypeScript | Type-safe JavaScript development |
+| Deployment | Netlify | Global CDN with automatic HTTPS |
+
+### Testing & Quality
+| Component | Status | Details |
+|-----------|--------|---------|
+| Test Suite | 25/25 tests passing | Comprehensive backend testing |
+| CI/CD | Automated | GitHub Actions workflow |
+| Deployment | Production ready | Railway + Netlify deployment |
 
 ## 🏗️ Architecture
 
