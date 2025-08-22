@@ -50,6 +50,91 @@ A simple, user-friendly AI-powered fitness and nutrition coach application desig
 | CI/CD | Automated | GitHub Actions workflow |
 | Deployment | Production ready | Railway + Netlify deployment |
 
+## 🚀 Quick Start
+
+### Prerequisites
+- Python 3.11+
+- Node.js 18+
+- Google Gemini API key
+
+### Installation & Setup
+```bash
+# Clone and setup backend
+git clone https://github.com/JoeyRudd/ai-fitness-coach.git
+cd ai-fitness-coach
+make install
+export GEMINI_API_KEY=your_api_key_here
+make backend
+
+# Setup frontend (new terminal)
+cd frontend
+npm install
+npm run dev
+```
+
+### Environment Variables
+```bash
+# Backend
+GEMINI_API_KEY=your_google_ai_api_key
+ALLOWED_ORIGINS=http://localhost:5173
+
+# Frontend
+VITE_API_BASE=http://localhost:8000/api/v1
+```
+
+### Testing
+```bash
+make test
+```
+
+## 📚 API Reference
+
+**Base URL**: `http://localhost:8000/api/v1`
+
+### Endpoints
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| POST | `/chat` | Chat with AI fitness coach |
+| GET | `/healthz` | Health check |
+| GET | `/` | App status |
+
+### POST `/chat`
+**Request:**
+```json
+{
+  "message": "Create a workout plan",
+  "history": []
+}
+```
+
+**Response:**
+```json
+{
+  "response": "Here's your workout plan...",
+  "profile": { "age": 25, "weight_kg": 70 },
+  "tdee": { "bmr": 1700, "tdee": 2200 },
+  "missing": ["activity_factor"],
+  "intent": "workout"
+}
+```
+
+### GET `/healthz`
+**Response:**
+```json
+{ "status": "ok" }
+```
+
+### GET `/`
+**Response:**
+```json
+{
+  "message": "AI Fitness Coach running",
+  "model": "gemini-1.5-flash",
+  "rag_status": "ready"
+}
+```
+
 ## 🏗️ Architecture
 
 ### System Overview
