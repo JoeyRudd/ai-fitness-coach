@@ -130,33 +130,29 @@
             :placeholder="placeholder"
             :rows="textareaRows"
             :maxlength="maxLength"
-            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 pr-12 border border-gray-300 dark:border-neutral-600 rounded-3xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 resize-none transition-all duration-200 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
+            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 pr-14 border border-gray-300 dark:border-neutral-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 resize-none transition-all duration-200 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
             :disabled="loading"
             @keydown.enter.prevent="handleEnter"
             @keydown.ctrl.enter.prevent="sendMessage"
             @keydown.meta.enter.prevent="sendMessage"
           ></textarea>
-          
-          <!-- Character counter -->
-          <div class="absolute bottom-2 sm:bottom-3 right-2 sm:right-3 text-xs text-gray-400 dark:text-gray-500" v-if="maxLength">
-            {{ userInput.length }}/{{ maxLength }}
-          </div>
-        </div>
 
-        <!-- Send button -->
-        <div class="flex justify-end items-center mt-3 max-w-4xl mx-auto">
+          <!-- Circular send button inside input -->
           <button
             @click="sendMessage"
             :disabled="loading || !userInput.trim() || (!!maxLength && userInput.length > maxLength)"
-            class="px-4 py-2.5 sm:px-6 sm:py-2 bg-blue-600 text-white font-medium rounded-2xl hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-900 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md text-sm sm:text-base min-h-[44px] sm:min-h-[40px] w-auto max-w-[200px]"
+            class="absolute bottom-3 sm:bottom-3.5 right-1.5 sm:right-2 w-9 h-9 sm:w-10 sm:h-10 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white rounded-full flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md z-10"
           >
-            <span v-if="!loading">{{ sendButtonText }}</span>
+            <span v-if="!loading">
+              <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+              </svg>
+            </span>
             <span v-else class="flex items-center">
-              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+              <svg class="animate-spin w-3.5 h-3.5 sm:w-4 sm:h-4 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
                 <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
                 <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
               </svg>
-              Thinking...
             </span>
           </button>
         </div>
