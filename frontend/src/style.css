@@ -36,3 +36,29 @@ html.dark body {
 #app {
     min-height: 100vh;
 }
+
+/* Prevent zoom on mobile devices */
+* {
+    touch-action: manipulation;
+    -webkit-touch-callout: none;
+    -webkit-user-select: none;
+    -khtml-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+}
+
+/* Re-enable text selection for input fields and text areas */
+input, textarea, [contenteditable] {
+    touch-action: text;
+    -webkit-user-select: text;
+    -khtml-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+    user-select: text;
+}
+
+/* Prevent zoom on input focus for iOS */
+input, textarea {
+    font-size: 16px;
+}
