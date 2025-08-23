@@ -1,14 +1,14 @@
 from typing import List, Optional, Dict, Any, Literal
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 class ChatMessage(BaseModel):
     role: Literal['user','assistant','system']
-    content: str
+    content: str = Field(..., min_length=1, description="Message content cannot be empty")
 
 # New lightweight turn model (excludes 'system' role for client supplied turns)
 class ChatTurn(BaseModel):
     role: Literal['user','assistant']
-    content: str
+    content: str = Field(..., min_length=1, description="Message content cannot be empty")
 
 class ChatQuery(BaseModel):
     history: List[ChatMessage]
@@ -34,7 +34,7 @@ class HistoryChatResponse(BaseModel):
 
 # New request/response models for refined /chat endpoint
 class ChatRequest(BaseModel):
-    message: str
+    message: str = Field(..., min_length=1, description="User message cannot be empty")
     history: List[ChatTurn] = []  # prior conversation turns without the new message
 
 class ChatResponse(BaseModel):

@@ -98,19 +98,17 @@ class TestAPIEndpoints:
         assert "profile" in data
     
     def test_chat_endpoint_empty_message(self, client: TestClient, mock_generate):
-        """Test chat endpoint with empty message (currently allowed by model)."""
-        mock_generate("I can handle empty messages too!")
-        
+        """Test chat endpoint with empty message (should be rejected)."""
         request_data = {
             "message": "",
             "history": []
         }
         
         response = client.post("/api/v1/chat", json=request_data)
-        assert response.status_code == 200  # Currently allowed by Pydantic model
+        assert response.status_code == 422  # Validation error - empty message not allowed
         
         data = response.json()
-        assert data["response"] is not None
+        assert "detail" in data
     
     def test_chat_endpoint_missing_message(self, client: TestClient):
         """Test chat endpoint with missing message field."""
