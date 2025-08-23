@@ -1107,11 +1107,17 @@ class RAGService:
                     context_sentence = " Get 0.8-1g of protein per pound of bodyweight daily, along with complex carbs and healthy fats. For weight loss, eat in a 300-500 calorie deficit. For muscle building, eat at maintenance or a slight surplus."
             elif re.search(r'form|injury|hurt|pain', user_message, re.I):
                 context_sentence = " Focus on proper form over weight. Start with lighter weights and perfect your technique before progressing. Consider working with a trainer initially."
-            elif re.search(r'cardio|running|walking', user_message, re.I):
-                if context.get('fitness_level') == 'beginner':
-                    context_sentence = " Do 20-30 minutes of moderate cardio 2-3 times per week. Walking, cycling, or swimming are great beginner options."
+            elif re.search(r'run|running|jog|jogging|cardio|distance|far|time|pace', user_message, re.I):
+                # Handle running/cardio questions with context awareness
+                if context.get('preferred_activities') and 'cardio' in context['preferred_activities']:
+                    if context.get('fitness_level') == 'beginner':
+                        context_sentence = " As a beginner runner, start with 10-15 minutes of easy jogging or walking intervals. Begin with 1-2 minutes of jogging followed by 2-3 minutes of walking. Gradually increase your jogging time each week. Focus on building endurance and proper form before worrying about distance or speed."
+                    else:
+                        context_sentence = " For running, start with a comfortable pace where you can maintain a conversation. Begin with shorter distances and gradually increase your time and distance each week. Listen to your body and don't increase by more than 10% per week."
                 else:
-                    context_sentence = " Do 2-4 cardio sessions per week, mixing steady-state and interval training. Adjust intensity based on your fitness level."
+                    # Generic cardio advice if no specific context
+                    context_sentence = " For cardio like running, start with 10-15 minutes of easy effort where you can maintain a conversation. Gradually increase your time by 5 minutes each week. Focus on consistency and building endurance before worrying about speed or distance."
+
             elif re.search(r'muscle|build muscle|strength|stronger', user_message, re.I):
                 if context.get('fitness_level') == 'beginner':
                     context_sentence = " For building muscle as a beginner, do 2-3 full-body strength days per week. Focus on compound movements: leg press, chest press, lat pulldown, and shoulder press. Do 3-4 sets of 8-12 reps with proper form."
