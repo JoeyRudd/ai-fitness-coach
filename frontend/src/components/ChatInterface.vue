@@ -185,7 +185,6 @@ interface Props {
   apiEndpoint?: string
   inputLabel?: string
   placeholder?: string
-  sendButtonText?: string
   textareaRows?: number
   maxLength?: number
 }
@@ -195,7 +194,6 @@ const props = defineProps<Props>();
 
 // Local fallbacks (non-reactive to external prop changes, sufficient here)
 const placeholder = props.placeholder ?? 'e.g., Create a workout plan for beginners, or suggest a healthy meal...';
-const sendButtonText = props.sendButtonText ?? 'Send';
 const textareaRows = props.textareaRows ?? 3;
 const maxLength = props.maxLength ?? 1000;
 
