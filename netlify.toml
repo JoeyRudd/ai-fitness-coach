@@ -3,7 +3,32 @@
   command = "npm run build"
   publish = "dist"
 
+[build.environment]
+  VITE_API_BASE = "https://outstanding-caring-production.up.railway.app"
+
+# Set proper MIME types for static assets
+[[headers]]
+  for = "*.css"
+  [headers.values]
+    Content-Type = "text/css"
+
+[[headers]]
+  for = "*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+
+[[headers]]
+  for = "/assets/*.css"
+  [headers.values]
+    Content-Type = "text/css"
+
+[[headers]]
+  for = "/assets/*.js"
+  [headers.values]
+    Content-Type = "application/javascript"
+
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+  force = false

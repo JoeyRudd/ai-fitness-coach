@@ -8,19 +8,7 @@ const app = createApp(App)
 // Global error handler
 app.config.errorHandler = (err, _instance, info) => {
   console.error('Vue Error:', err, info)
-  
-  // Display error in the DOM for debugging
-  const appElement = document.getElementById('app')
-  if (appElement) {
-    appElement.innerHTML = `
-      <div style="padding: 20px; font-family: monospace; background: #fee; border: 1px solid #fcc; margin: 20px;">
-        <h2>Vue Error:</h2>
-        <pre>${err}</pre>
-        <p><strong>Info:</strong> ${info}</p>
-        <button onclick="window.location.reload()">Reload Page</button>
-      </div>
-    `
-  }
+  // Let the app continue to render even if there are errors
 }
 
 // Global warn handler
