@@ -1,9 +1,9 @@
 <template>
   <div class="flex flex-col h-full w-full min-h-0">
     <!-- Chat History - Takes up most of the screen -->
-    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-6 min-h-0">
+    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-2 sm:py-4 min-h-0 flex flex-col">
       <!-- Welcome Message -->
-      <div v-if="history.length === 1" class="text-center py-8 sm:py-12">
+      <div v-if="history.length === 1" class="text-center py-4 sm:py-6 flex-1 flex flex-col justify-center">
         <div class="text-2xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-3 sm:mb-4">
           Hypertrofit
         </div>
@@ -206,18 +206,16 @@ function resolveEndpoint(): string {
     MODE: import.meta.env.MODE
   });
 
+  // For development, use the proxy configuration
+  if (import.meta.env.DEV) {
+    console.log('[ChatInterface] Development mode - using proxy configuration');
+    return '/api/v1/chat';
+  }
+
+  // For production, use environment variable or fallback
   if (!envBase) {
-    // This will now be very obvious in the console if the variable is missing
-    console.error("FATAL: VITE_API_BASE environment variable is not set!");
-    
-    // For production, try to use the Railway URL as fallback
-    if (import.meta.env.PROD) {
-      console.warn("Attempting to use Railway fallback URL");
-      return 'https://outstanding-caring-production.up.railway.app/api/v1/chat';
-    }
-    
-    // Return a non-functional path to ensure it fails in development
-    return '/error-vite-api-base-not-set';
+    console.warn("VITE_API_BASE environment variable is not set, using Railway fallback");
+    return 'https://outstanding-caring-production.up.railway.app/api/v1/chat';
   }
   
   // The env var should contain the full path including /api/v1
