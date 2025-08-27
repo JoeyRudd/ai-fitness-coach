@@ -1,7 +1,7 @@
 <template>
   <div class="relative h-full w-full flex flex-col">
     <!-- Chat History - Takes up all available space, scrollable -->
-    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-2 sm:py-4 pb-0">
+    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-2 sm:py-4 pb-0 min-h-0">
       <!-- Welcome Message -->
       <div v-if="history.length === 1" class="text-center py-4 sm:py-6">
         <div class="text-2xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-3 sm:mb-4">
