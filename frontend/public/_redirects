@@ -1,2 +1,5 @@
-# This file is no longer needed - redirects are handled in netlify.toml
-# Removing to avoid conflicts
+# Handle Vue.js client-side routing
+/*    /index.html   200
+
+# Cache static assets
+/assets/*  /assets/:splat  200
