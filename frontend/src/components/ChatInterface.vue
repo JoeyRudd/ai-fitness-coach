@@ -1,7 +1,7 @@
 <template>
-  <div class="flex flex-col h-full w-full min-h-0">
-    <!-- Chat History - Takes up most of the screen -->
-    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-2 sm:py-4 min-h-0">
+  <div class="relative h-full w-full flex flex-col">
+    <!-- Chat History - Takes up all available space, scrollable -->
+    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-2 sm:py-4 pb-0">
       <!-- Welcome Message -->
       <div v-if="history.length === 1" class="text-center py-4 sm:py-6">
         <div class="text-2xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-3 sm:mb-4">
@@ -101,7 +101,7 @@
       </div>
 
       <!-- Profile Chips & Missing Info Notices -->
-      <div v-if="showProfileBar" class="mt-4 sm:mt-6 w-full px-2">
+      <div v-if="showProfileBar" class="mt-4 sm:mt-6 w-full px-2 mb-4">
         <div class="max-w-4xl mx-auto">
           <div class="flex flex-wrap gap-1.5 sm:gap-2 mb-2">
             <span v-if="profile.sex" class="chip text-xs">Sex: {{ profile.sex }}</span>
@@ -120,8 +120,8 @@
       </div>
     </div>
 
-    <!-- Input Section - Fixed at bottom -->
-    <div class="bg-gray-100 dark:bg-[#080e12]">
+    <!-- Input Section - Absolutely positioned at bottom -->
+    <div class="absolute bottom-0 left-0 right-0 bg-gray-100 dark:bg-[#080e12] border-t border-gray-200 dark:border-neutral-700">
       <div class="w-full px-3 sm:px-6 py-3 sm:py-4">
         <div class="relative max-w-4xl mx-auto">
           <textarea

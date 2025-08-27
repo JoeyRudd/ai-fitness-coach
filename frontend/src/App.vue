@@ -23,8 +23,8 @@
             </div>
         </div>
 
-        <!-- Main Chat Interface - Full Width -->
-        <div class="flex-1 min-h-0">
+        <!-- Main Chat Interface - Full Height -->
+        <div class="flex-1 min-h-0 flex flex-col">
             <ChatInterface
                 input-label="Ask your fitness question:"
                 placeholder="e.g., Create a workout plan for beginners, help me plan my meals, or ask about exercises..."
