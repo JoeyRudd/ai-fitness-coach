@@ -20,9 +20,15 @@ export default defineConfig({
     target: 'es2015',
     rollupOptions: {
       output: {
-        manualChunks: undefined
+        manualChunks: undefined,
+        // Ensure assets are properly named and accessible
+        assetFileNames: 'assets/[name]-[hash][extname]',
+        chunkFileNames: 'assets/[name]-[hash].js',
+        entryFileNames: 'assets/[name]-[hash].js'
       }
-    }
+    },
+    // Ensure assets are built with proper extensions
+    assetsInlineLimit: 0
   },
   optimizeDeps: {
     // Force pre-bundling for Safari

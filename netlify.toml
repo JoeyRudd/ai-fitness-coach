@@ -6,51 +6,10 @@
 [build.environment]
   VITE_API_BASE = "https://outstanding-caring-production.up.railway.app"
 
-# Set proper MIME types and cache headers for static assets
-[[headers]]
-  for = "/assets/*"
-  [headers.values]
-    Content-Type = "application/octet-stream"
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/assets/*.css"
-  [headers.values]
-    Content-Type = "text/css; charset=utf-8"
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/assets/*.js"
-  [headers.values]
-    Content-Type = "application/javascript; charset=utf-8"
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/*.css"
-  [headers.values]
-    Content-Type = "text/css; charset=utf-8"
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/*.js"
-  [headers.values]
-    Content-Type = "application/javascript; charset=utf-8"
-    Cache-Control = "public, max-age=31536000, immutable"
-
-[[headers]]
-  for = "/index.html"
-  [headers.values]
-    Content-Type = "text/html; charset=utf-8"
-    Cache-Control = "public, max-age=0, must-revalidate"
-
-[[headers]]
-  for = "/"
-  [headers.values]
-    Content-Type = "text/html; charset=utf-8"
-    Cache-Control = "public, max-age=0, must-revalidate"
-
-# Handle SPA routing - this must come after asset headers
+# Handle SPA routing - redirect all non-asset requests to index.html
 [[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200
+
+# Netlify automatically serves assets with correct MIME types
