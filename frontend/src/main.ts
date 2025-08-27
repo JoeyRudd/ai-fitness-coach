@@ -6,13 +6,13 @@ import App from './App.vue'
 const app = createApp(App)
 
 // Global error handler
-app.config.errorHandler = (err, instance, info) => {
+app.config.errorHandler = (err, _instance, info) => {
   console.error('Vue Error:', err, info)
   // Ensure the app still renders even if there are errors
 }
 
 // Global warn handler
-app.config.warnHandler = (msg, instance, trace) => {
+app.config.warnHandler = (msg, _instance, trace) => {
   console.warn('Vue Warning:', msg, trace)
 }
 
