@@ -1,5 +1,0 @@
-# Handle Vue.js client-side routing
-/*    /index.html   200
-
-# Cache static assets
-/assets/*  /assets/:splat  200
