@@ -12,4 +12,12 @@
   to = "/index.html"
   status = 200
 
+# Prevent aggressive caching of assets to avoid serving old files
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "no-cache, no-store, must-revalidate"
+    Pragma = "no-cache"
+    Expires = "0"
+
 # Netlify automatically serves assets with correct MIME types
