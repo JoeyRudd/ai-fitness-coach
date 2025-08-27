@@ -5,6 +5,9 @@
     <link rel="icon" type="image/svg+xml" href="/vite.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=0, viewport-fit=cover" />
 
+    <!-- Content Security Policy for Safari -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' http://localhost:8000 https://localhost:8000;">
+
     <!-- PWA Meta Tags -->
     <link rel="manifest" href="/manifest.json">
     <meta name="theme-color" content="#3B82F6">
@@ -20,10 +23,18 @@
     <meta name="format-detection" content="telephone=no">
     <meta name="apple-touch-fullscreen" content="yes">
     
+    <!-- Safari-specific fixes -->
+    <meta name="apple-mobile-web-app-capable" content="standalone">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    
     <!-- Prevent iOS Safari from caching the page -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
+    
+    <!-- Additional Safari compatibility -->
+    <meta name="robots" content="noindex, nofollow">
+    <meta name="referrer" content="no-referrer">
 
     <title>Hypertrofit</title>
     <script>
@@ -37,6 +48,29 @@
           document.documentElement.classList.remove('dark');
         }
       } catch (e) {}
+      
+      // Safari-specific fix for restrictions
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        // Check for mixed content issues
+        const checkMixedContent = () => {
+          const images = document.querySelectorAll('img');
+          const scripts = document.querySelectorAll('script');
+          
+          images.forEach(img => {
+            if (img.src && img.src.startsWith('http://') && window.location.protocol === 'https:') {
+              console.warn('Mixed content detected:', img.src);
+            }
+          });
+          
+          scripts.forEach(script => {
+            if (script.src && script.src.startsWith('http://') && window.location.protocol === 'https:') {
+              console.warn('Mixed content detected:', script.src);
+            }
+          });
+        };
+        
+        window.addEventListener('load', checkMixedContent);
+      }
     </script>
   </head>
   <body>

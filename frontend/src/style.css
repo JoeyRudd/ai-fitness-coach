@@ -151,3 +151,32 @@ textarea {
         height: -webkit-fill-available;
     }
 }
+
+/* Safari-specific fixes */
+@supports (-webkit-touch-callout: none) {
+  /* iOS Safari specific styles */
+  html, body {
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Prevent white screen flash */
+  #app {
+    min-height: 100vh;
+    background-color: #ffffff; /* or your app's background color */
+  }
+  
+  /* Force hardware acceleration */
+  #app {
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
+  }
+}
+
+/* Additional Safari viewport fixes */
+@media screen and (max-width: 768px) {
+  html {
+    -webkit-text-size-adjust: none;
+  }
+}

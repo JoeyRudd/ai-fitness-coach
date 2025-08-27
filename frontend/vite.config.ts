@@ -14,5 +14,18 @@ export default defineConfig({
         // Do not rewrite path; backend expects /api/v1/...
       }
     }
+  },
+  build: {
+    // Better Safari compatibility
+    target: 'es2015',
+    rollupOptions: {
+      output: {
+        manualChunks: undefined
+      }
+    }
+  },
+  optimizeDeps: {
+    // Force pre-bundling for Safari
+    include: ['vue']
   }
 })

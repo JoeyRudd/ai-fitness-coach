@@ -41,6 +41,17 @@ if ('serviceWorker' in navigator) {
 
 // Add iOS Safari specific fixes
 if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+  // Force immediate render to prevent white screen
+  document.addEventListener('DOMContentLoaded', () => {
+    const app = document.getElementById('app')
+    if (app && app.innerHTML === '') {
+      // Force re-render if app is empty
+      setTimeout(() => {
+        window.location.reload()
+      }, 100)
+    }
+  })
+  
   // Fix for iOS Safari viewport issues
   const fixIOSViewport = () => {
     const viewport = document.querySelector('meta[name="viewport"]')
