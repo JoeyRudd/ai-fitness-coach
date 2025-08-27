@@ -3,9 +3,6 @@
   command = "rm -rf dist && npm run build"
   publish = "dist"
 
-[build.environment]
-  VITE_API_BASE = "https://outstanding-caring-production.up.railway.app"
-
 # Handle SPA routing - redirect all non-asset requests to index.html
 [[redirects]]
   from = "/*"

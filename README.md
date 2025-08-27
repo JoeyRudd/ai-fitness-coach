@@ -119,7 +119,7 @@ GEMINI_API_KEY=your_google_ai_api_key
 ALLOWED_ORIGINS=http://localhost:5173
 
 # Frontend
-VITE_API_BASE=http://localhost:8000/api/v1
+# No environment variables needed - automatically detects dev/prod mode
 ```
 
 ### PWA Development Testing
@@ -303,7 +303,6 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 | KNOWLEDGE_BASE_PATH | backend | knowledge_base | Override location of markdown knowledge base. |
 | EMBEDDING_MODEL_NAME | backend | all-MiniLM-L6-v2 | Sentence transformer model used for embeddings. |
 | MAX_RETRIEVAL_CHUNKS | backend | 3 | How many context chunks to inject into prompt. |
-| VITE_API_BASE | frontend | http://localhost:8000/api/v1 | Base URL the frontend uses for API calls. Must include version prefix. |
 
 ## Architecture Overview
 

@@ -39,12 +39,13 @@ const error = ref<string>("");
 const loading = ref<boolean>(false);
 
 const API_BASE = (() => {
-    const envBase = import.meta.env.VITE_API_BASE as string | undefined;
-    if (!envBase) {
-        console.error("FATAL: VITE_API_BASE environment variable is not set!");
-        return '/error-vite-api-base-not-set';
+    // For development, use the proxy configuration
+    if (import.meta.env.DEV) {
+        return '/api/v1';
     }
-    return envBase.replace(/\/$/, '');
+    
+    // For production, use Railway URL directly
+    return 'https://outstanding-caring-production.up.railway.app/api/v1';
 })();
 
 // Function to test backend connection

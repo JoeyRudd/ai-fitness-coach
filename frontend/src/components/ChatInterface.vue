@@ -198,41 +198,14 @@ const textareaRows = props.textareaRows ?? 3;
 const maxLength = props.maxLength ?? 1000;
 
 function resolveEndpoint(): string {
-  const envBase = import.meta.env.VITE_API_BASE as string | undefined;
-
-  console.log('[ChatInterface] Environment check:', {
-    VITE_API_BASE: envBase,
-    PROD: import.meta.env.PROD,
-    MODE: import.meta.env.MODE
-  });
-
   // For development, use the proxy configuration
   if (import.meta.env.DEV) {
     console.log('[ChatInterface] Development mode - using proxy configuration');
     return '/api/v1/chat';
   }
 
-  // For production, use environment variable or fallback
-  if (!envBase) {
-    console.warn("VITE_API_BASE environment variable is not set, using Railway fallback");
-    return 'https://outstanding-caring-production.up.railway.app/api/v1/chat';
-  }
-  
-  // The env var should contain the full path including /api/v1
-  let endpoint = `${envBase.replace(/\/$/, '')}/chat`;
-  
-  // Ensure we have the correct API path structure
-  if (!endpoint.includes('/api/v1')) {
-    console.warn('[ChatInterface] Environment variable missing /api/v1, fixing...');
-    if (endpoint.includes('railway.app')) {
-      endpoint = 'https://outstanding-caring-production.up.railway.app/api/v1/chat';
-    } else {
-      endpoint = `${envBase.replace(/\/$/, '')}/api/v1/chat`;
-    }
-  }
-  
-  console.log('[ChatInterface] Built endpoint from env:', endpoint);
-  return endpoint;
+  // For production, use Railway URL directly
+  return 'https://outstanding-caring-production.up.railway.app/api/v1/chat';
 }
 
 console.debug('[ChatInterface] Using API endpoint:', resolveEndpoint());
