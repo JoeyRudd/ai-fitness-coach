@@ -103,16 +103,4 @@ textarea {
     }
 }
 
-/* Ensure content is visible even if there are rendering issues */
-.h-screen {
-    min-height: 100vh;
-    height: 100vh;
-    height: -webkit-fill-available;
-}
-
-/* Fix for iOS Safari viewport height issues */
-@supports (-webkit-touch-callout: none) {
-    .h-screen {
-        height: -webkit-fill-available;
-    }
-}
+/* Let TailwindCSS handle .h-screen class - no custom overrides */
