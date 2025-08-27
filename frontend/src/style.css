@@ -26,6 +26,12 @@ body {
     background-color: #f9fafb; /* gray-50 */
     color: #111827; /* gray-900 */
     transition: background-color 300ms ease, color 300ms ease;
+    /* iOS Safari specific fixes */
+    -webkit-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    /* Ensure body is visible */
+    position: relative;
+    z-index: 1;
 }
 
 html.dark body {
@@ -35,30 +41,113 @@ html.dark body {
 
 #app {
     min-height: 100vh;
+    /* Ensure app container is visible */
+    position: relative;
+    z-index: 2;
+    /* iOS Safari specific */
+    -webkit-transform: translateZ(0);
+    transform: translateZ(0);
 }
 
-/* Prevent zoom on mobile devices */
+/* Mobile-friendly touch handling */
 * {
-    touch-action: manipulation;
-    -webkit-touch-callout: none;
-    -webkit-user-select: none;
-    -khtml-user-select: none;
-    -moz-user-select: none;
-    -ms-user-select: none;
-    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
-/* Re-enable text selection for input fields and text areas */
+/* Prevent zoom on mobile devices - iOS specific */
+input, textarea {
+    font-size: 16px; /* Prevents zoom on iOS */
+    -webkit-appearance: none;
+    border-radius: 0;
+    /* Prevent zoom on focus */
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
+}
+
+/* Ensure proper text selection for interactive elements */
 input, textarea, [contenteditable] {
-    touch-action: text;
     -webkit-user-select: text;
-    -khtml-user-select: text;
     -moz-user-select: text;
     -ms-user-select: text;
     user-select: text;
 }
 
-/* Prevent zoom on input focus for iOS */
-input, textarea {
-    font-size: 16px;
+/* Strong zoom prevention for all form elements */
+input[type="text"], 
+input[type="email"], 
+input[type="password"], 
+input[type="search"], 
+input[type="tel"], 
+input[type="url"], 
+input[type="number"], 
+textarea {
+    font-size: 16px !important;
+    -webkit-text-size-adjust: 100% !important;
+    -moz-text-size-adjust: 100% !important;
+    -ms-text-size-adjust: 100% !important;
+    text-size-adjust: 100% !important;
+}
+
+/* iOS Safari specific fixes */
+@supports (-webkit-touch-callout: none) {
+    /* iOS Safari specific styles */
+    body {
+        -webkit-text-size-adjust: 100%;
+        -webkit-font-smoothing: antialiased;
+        /* Force hardware acceleration */
+        -webkit-transform: translateZ(0);
+        transform: translateZ(0);
+    }
+    
+    input, textarea {
+        -webkit-appearance: none;
+        border-radius: 0;
+        /* Stronger zoom prevention for iOS */
+        -webkit-text-size-adjust: 100%;
+        -moz-text-size-adjust: 100%;
+        -ms-text-size-adjust: 100%;
+        text-size-adjust: 100%;
+        /* Additional iOS zoom prevention */
+        -webkit-transform: scale(1);
+        transform: scale(1);
+    }
+    
+    /* Fix for iOS Safari flexbox issues */
+    .flex {
+        -webkit-box-orient: horizontal;
+        -webkit-box-direction: normal;
+        -webkit-flex-direction: row;
+        flex-direction: row;
+    }
+    
+    .flex-col {
+        -webkit-box-orient: vertical;
+        -webkit-box-direction: normal;
+        -webkit-flex-direction: column;
+        flex-direction: column;
+    }
+}
+
+/* Additional iOS Safari compatibility */
+@media screen and (-webkit-min-device-pixel-ratio: 0) {
+    /* WebKit specific fixes */
+    body {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+}
+
+/* Ensure content is visible even if there are rendering issues */
+.h-screen {
+    min-height: 100vh;
+    height: 100vh;
+    /* iOS Safari fallback */
+    height: -webkit-fill-available;
+}
+
+/* Fix for iOS Safari viewport height issues */
+@supports (-webkit-touch-callout: none) {
+    .h-screen {
+        height: -webkit-fill-available;
+    }
 }
