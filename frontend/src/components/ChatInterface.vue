@@ -21,9 +21,9 @@
             class="ml-auto flex justify-end"
           >
             <div class="flex flex-col items-end">
-              <div 
+              <div
                 :class="getMessageBubbleClasses(turn.content)"
-                class="bg-blue-600 text-white rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap text-sm sm:text-base transition-all duration-200 ease-out"
+                class="bg-gray-100 dark:bg-[#080e12] text-gray-900 dark:text-gray-100 rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap text-sm sm:text-base transition-all duration-200 ease-out"
               >
                 {{ turn.content }}
               </div>
