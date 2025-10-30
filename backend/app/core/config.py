@@ -17,7 +17,8 @@ class Settings(BaseSettings):
 
     # Empty default so missing key triggers clean fallback (no invalid key attempts)
     gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
-    gemini_model_name: str = Field(default="gemini-1.5-flash", alias="GEMINI_MODEL_NAME")
+    # Default to a widely available Gemini 2.5 model
+    gemini_model_name: str = Field(default="gemini-2.5-flash", alias="GEMINI_MODEL_NAME")
     allowed_origins: str = Field(default="http://localhost:5173", alias="ALLOWED_ORIGINS")  # comma-separated
     knowledge_base_path: str = Field(default="knowledge_base", alias="KNOWLEDGE_BASE_PATH")
     max_retrieval_chunks: int = Field(default=4, alias="MAX_RETRIEVAL_CHUNKS")

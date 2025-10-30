@@ -16,7 +16,7 @@ import logging
 import os
 import json
 
-try:  # Import guarded so environments without the package still work gracefully.
+    try:  # Import guarded so environments without the package still work gracefully.
     import google.generativeai as genai  # type: ignore
 except Exception:  # pragma: no cover
     genai = None  # type: ignore
@@ -55,9 +55,45 @@ def _init_client() -> None:
 
     try:
         genai.configure(api_key=api_key)
-        _model_name = os.getenv("GEMINI_MODEL", "gemini-1.5-flash").strip() or "gemini-1.5-flash"
-        _model = genai.GenerativeModel(_model_name)  # type: ignore[attr-defined]
-        logger.debug("Gemini model '%s' initialized successfully.", _model_name)
+        # Prefer GEMINI_MODEL_NAME, then GEMINI_MODEL, else use a broadly supported default
+        configured_name = (
+            os.getenv("GEMINI_MODEL_NAME", "").strip()
+            or os.getenv("GEMINI_MODEL", "").strip()
+        )
+        # Default and fallbacks prioritize Gemini 2.5 family (1.5 is deprecated)
+        candidate_names = [
+            configured_name if configured_name else "gemini-2.5-flash",
+            # Fallbacks in case the primary is not available in the deployed API version
+            "gemini-2.5-flash-lite",
+            "gemini-2.5-pro",
+            # As last resorts, try older families that may still be present
+            "gemini-1.5-flash",
+            "gemini-1.5-pro",
+        ]
+
+        last_exc: Exception | None = None
+        for name in candidate_names:
+            try:
+                if not name:
+                    continue
+                model = genai.GenerativeModel(name)  # type: ignore[attr-defined]
+                # quick no-op call to verify the model exists and supports generateContent
+                # Use a minimal prompt to avoid latency; failures will raise
+                _ = model.generate_content("ping")
+                _model = model
+                _model_name = name
+                logger.info("Gemini model '%s' initialized.", _model_name)
+                last_exc = None
+                break
+            except Exception as exc:
+                last_exc = exc
+                logger.warning("Gemini model '%s' not usable: %s", name, exc)
+
+        if _model is None:
+            if last_exc is not None:
+                logger.error("Failed to initialize Gemini client after fallbacks: %s", last_exc)
+            else:
+                logger.error("Failed to initialize Gemini client: unknown error")
     except Exception as exc:
         logger.error("Failed to initialize Gemini client: %s", exc)
         _model = None
