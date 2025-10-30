@@ -118,11 +118,38 @@ def generate_response(prompt: str) -> str:
     safe_prompt = _sanitize_prompt(prompt)
     try:
         response = _model.generate_content(safe_prompt)
-        if hasattr(response, "text") and response.text:
-            return response.text.strip()
+        # Prefer robust extraction over response.text quick accessor
+        try:
+            candidates = getattr(response, "candidates", []) or []
+            if candidates:
+                parts = getattr(candidates[0], "content", None)
+                # Newer SDKs expose candidates[0].content.parts as list of Parts
+                text_chunks: List[str] = []
+                content_obj = getattr(candidates[0], "content", None)
+                parts_list = getattr(content_obj, "parts", []) if content_obj else []
+                for part in parts_list:
+                    text_val = getattr(part, "text", None)
+                    if isinstance(text_val, str) and text_val.strip():
+                        text_chunks.append(text_val.strip())
+                if text_chunks:
+                    return "\n".join(text_chunks)
+
+                # If no text parts, examine finish_reason for helpful messaging
+                finish_reason = getattr(candidates[0], "finish_reason", None)
+                logger.warning("Gemini returned no text. finish_reason=%s model=%s", finish_reason, _model_name)
+                if finish_reason in (2, "SAFETY"):  # safety blocked
+                    return "I couldn't answer that due to safety filters. Please rephrase or ask something else."
+
+            # Fallback to response.text if available
+            if hasattr(response, "text") and getattr(response, "text"):
+                return str(response.text).strip()
+        except Exception:
+            # Ignore extraction errors and fall through to generic handling
+            pass
+
         return _FALLBACK_RESPONSE
     except Exception as exc:
-        logger.error("Gemini generation failed: %s", exc)
+        logger.error("Gemini generation failed for model '%s': %s", _model_name, exc)
         return _FALLBACK_RESPONSE
 
 
