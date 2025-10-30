@@ -117,13 +117,23 @@ def generate_response(prompt: str) -> str:
 
     safe_prompt = _sanitize_prompt(prompt)
     try:
-        response = _model.generate_content(safe_prompt)
+        # Optional safety override via env flag (BLOCK_NONE lowers blocking; use responsibly)
+        safety_override = os.getenv("GEMINI_SAFETY_OVERRIDE", "false").lower() in {"1","true","yes"}
+        safety_settings = None
+        if safety_override and genai is not None:
+            safety_settings = [
+                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_SEXUAL", "threshold": "BLOCK_NONE"},
+            ]
+
+        response = _model.generate_content(safe_prompt, safety_settings=safety_settings)  # type: ignore
         # Prefer robust extraction over response.text quick accessor
         try:
             candidates = getattr(response, "candidates", []) or []
             if candidates:
-                parts = getattr(candidates[0], "content", None)
-                # Newer SDKs expose candidates[0].content.parts as list of Parts
+                # Extract text from parts only; never call response.text
                 text_chunks: List[str] = []
                 content_obj = getattr(candidates[0], "content", None)
                 parts_list = getattr(content_obj, "parts", []) if content_obj else []
@@ -136,13 +146,35 @@ def generate_response(prompt: str) -> str:
 
                 # If no text parts, examine finish_reason for helpful messaging
                 finish_reason = getattr(candidates[0], "finish_reason", None)
-                logger.warning("Gemini returned no text. finish_reason=%s model=%s", finish_reason, _model_name)
-                if finish_reason in (2, "SAFETY"):  # safety blocked
+                logger.warning(
+                    "Gemini returned no text (finish_reason=%s, model=%s).", finish_reason, _model_name
+                )
+                if finish_reason in (2, "SAFETY"):
+                    # One soft retry with safer instructions and lower temperature
+                    softened = (
+                        "Provide general fitness education only. Avoid medical claims, diagnoses, supplements, or unsafe instructions. "
+                        "Keep it practical and safe for beginners.\n\n" + safe_prompt
+                    )
+                    try:
+                        retry_resp = _model.generate_content(
+                            softened,
+                            safety_settings=safety_settings,  # honor override if set
+                            generation_config=genai.types.GenerationConfig(temperature=0.2, max_output_tokens=220) if genai else None,  # type: ignore
+                        )
+                        retry_candidates = getattr(retry_resp, "candidates", []) or []
+                        if retry_candidates:
+                            content_obj2 = getattr(retry_candidates[0], "content", None)
+                            parts2 = getattr(content_obj2, "parts", []) if content_obj2 else []
+                            retry_chunks: List[str] = []
+                            for p in parts2:
+                                t = getattr(p, "text", None)
+                                if isinstance(t, str) and t.strip():
+                                    retry_chunks.append(t.strip())
+                            if retry_chunks:
+                                return "\n".join(retry_chunks)
+                    except Exception:
+                        pass
                     return "I couldn't answer that due to safety filters. Please rephrase or ask something else."
-
-            # Fallback to response.text if available
-            if hasattr(response, "text") and getattr(response, "text"):
-                return str(response.text).strip()
         except Exception:
             # Ignore extraction errors and fall through to generic handling
             pass

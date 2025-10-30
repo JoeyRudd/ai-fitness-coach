@@ -935,13 +935,53 @@ class RAGService:
             elif mode == "long":
                 max_tokens = 400
 
-            resp = self._model.generate_content(prompt, generation_config=genai.types.GenerationConfig(  # type: ignore
-                temperature=0.55,
-                max_output_tokens=max_tokens,
-                top_p=0.9,
-                top_k=40
-            ))
-            text = (resp.text or '').strip()  # type: ignore
+            # Optional safety override via env flag (BLOCK_NONE lowers blocking; use responsibly)
+            safety_override = os.getenv("GEMINI_SAFETY_OVERRIDE", "false").lower() in {"1","true","yes"}
+            safety_settings = None
+            if safety_override:
+                safety_settings = [
+                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
+                    {"category": "HARM_CATEGORY_SEXUAL", "threshold": "BLOCK_NONE"},
+                ]
+
+            resp = self._model.generate_content(
+                prompt,
+                generation_config=genai.types.GenerationConfig(  # type: ignore
+                    temperature=0.55,
+                    max_output_tokens=max_tokens,
+                    top_p=0.9,
+                    top_k=40
+                ),
+                safety_settings=safety_settings
+            )
+            # Robust text extraction without relying on resp.text
+            text = ""
+            try:
+                candidates = getattr(resp, "candidates", []) or []
+                if candidates:
+                    content_obj = getattr(candidates[0], "content", None)
+                    parts_list = getattr(content_obj, "parts", []) if content_obj else []
+                    chunks: list[str] = []
+                    for part in parts_list:
+                        t = getattr(part, "text", None)
+                        if isinstance(t, str) and t.strip():
+                            chunks.append(t.strip())
+                    if chunks:
+                        text = "\n".join(chunks)
+                if not text:
+                    finish_reason = getattr(candidates[0], "finish_reason", None) if candidates else None
+                    logger.warning("Gemini returned no text (finish_reason=%s) in RAG path", finish_reason)
+                    if finish_reason in (2, "SAFETY"):
+                        return "I couldn't answer that due to safety filters. Please rephrase or ask something else."
+            except Exception:
+                pass
+            if not text and hasattr(resp, "text") and getattr(resp, "text"):
+                try:
+                    text = str(resp.text).strip()
+                except Exception:
+                    text = ""
             # Enforce short/medium caps post-generation
             if mode == "short":
                 parts = re.split(r"([.!?])", text)
