@@ -65,12 +65,13 @@ strict_equality = true
 
 [tool.pytest.ini_options]
 # Updated test path to include backend/app/tests
-testpaths = ["backend/tests", "tests", "../tests", "backend/app/tests"]
+testpaths = ["tests"]
 python_files = ["test_*.py", "*_test.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
 addopts = "-v --tb=short"
 asyncio_mode = "auto"
+pythonpath = ["."]
 
 [tool.pyright]
 include = ["backend/app"]
