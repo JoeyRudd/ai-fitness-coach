@@ -87,8 +87,9 @@ class TestErrorHandling:
     
     def test_rag_index_not_ready(self, client: TestClient, force_fallback):
         """Test behavior when RAG index is not ready."""
-        with patch.object(rag_service, '_rag_index') as mock_index:
+        with patch.object(rag_service, '_rag_index', MagicMock()) as mock_index:
             mock_index._ready = False
+            mock_index.hybrid_retrieve.return_value = []  # Return empty list when called
             
             response = client.post("/api/v1/chat", json={
                 "message": "Test message",

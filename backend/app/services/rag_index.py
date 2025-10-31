@@ -103,8 +103,6 @@ def _expand_query(q: str) -> str:
             extra.extend(vs)
     return q if not extra else f"{q} " + " ".join(extra)
 
-logger = logging.getLogger(__name__)
-
 class RAGIndex:
     """Lightweight embedding + FAISS index for local markdown knowledge base.
 
@@ -112,6 +110,11 @@ class RAGIndex:
         load(path): read .md/.txt recursively
         build(model_name): chunk + embed + build FAISS (lazy)
         retrieve(query, k): semantic search returning list[dict]
+            - Uses single method (TF-IDF, BM25, or sentence-transformers)
+            - Primarily used in tests; production code uses hybrid_retrieve()
+        hybrid_retrieve(query, k): hybrid retrieval using RRF
+            - Combines BM25 + TF-IDF using Reciprocal Rank Fusion
+            - Recommended for production use for better query handling
     """
 
     def __init__(self) -> None:

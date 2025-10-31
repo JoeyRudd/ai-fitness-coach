@@ -12,6 +12,7 @@ from typing import List, Dict, Any, Optional, Tuple
 
 from app.services.openrouter_client import generate_response as or_generate_response
 from app.services.openrouter_client import extract_tdee_from_text as or_extract_tdee
+from app.services.profile_logic import parse_profile_facts, rebuild_profile as profile_logic_rebuild
 from fastapi import HTTPException
 
 from app.core.config import settings
@@ -49,14 +50,7 @@ ANTI_HALLUCINATION_RULES = (
 )
 
 # ====================== Regex & Patterns ====================
-RE_GENDER = re.compile(r"\b(male|female|man|woman|boy|girl|m|f)\b", re.I)
-RE_AGE = re.compile(r"\b(\d{2})\s*(?:yo|y/o|years?|yrs?)?\b", re.I)
-RE_WEIGHT = re.compile(r"\b(\d{2,3})\s*(kg|kilograms|lbs|lb|pounds?)\b", re.I)
-RE_HEIGHT_FT_IN = re.compile(r"(\d)\s*[’']\s*(\d{1,2})")  # allow optional space: matches 5'6 or 5 '6
-RE_HEIGHT_FT_IN_WORDS = re.compile(r"(\d)\s*(?:ft|foot|feet)\s*(\d{1,2})\s*(?:in|inch|inches)?", re.I)
-EXTRA_HEIGHT_FT_IN_LOOSE = re.compile(r"(\d)\s+(\d{1,2})\b")  # fallback like '5 6'
-RE_HEIGHT_CM = re.compile(r"\b(\d{2,3})\s*cm\b", re.I)
-RE_HEIGHT_IN = re.compile(r"\b(\d{2})\s*(?:in|inch|inches)\b", re.I)
+# Note: Profile parsing regex patterns moved to profile_logic.py
 
 # Cliché safety phrases should be avoided unless user asks about safety/pain
 SAFETY_TRIGGER = re.compile(r"(safe|safety|injur(?:y|ies)|hurt|pain|form|medical|doctor|physician|therap|rehab)", re.I)
@@ -74,12 +68,6 @@ ACTIVITY_FACTORS: Dict[str,float] = {
     'very': 1.725,
     'extra': 1.9
 }
-
-ACTIVE_JOB_WORDS = [
-    'produce', 'warehouse', 'stock', 'stocking', 'retail', 'server', 'barista', 'nurse', 'construction', 'lifting boxes',
-    'on my feet', 'on feet', 'walk', 'walking'
-]
-RESISTANCE_TRAINING_WORDS = ['lift', 'lifting', 'weights', 'weight training', 'gym', 'resistance']
 
 TDEE_KEYWORDS = ["tdee", "maintenance", "calorie", "calories", "bmr", "burn each day", "daily burn"]
 START_TDEE_TRIGGERS = re.compile(r"(what\s+should\s+i\s+start|where\s+do\s+i\s+start|how\s+do\s+i\s+start)", re.I)
@@ -108,6 +96,34 @@ FIELD_HUMAN = {
     'activity_factor': 'activity level (sedentary, light, moderate, very, extra)'
 }
 
+# Knowledge Base exercise names - FALLBACK ONLY
+# NOTE: Exercises are now automatically extracted from KB chunks dynamically.
+# This list is only used as a fallback if extraction fails (rare edge case).
+# Can add exercises to the KB without updating this list - the system will auto-discover them.
+KB_EXERCISE_NAMES = [
+    # Lower body
+    "leg press",
+    "leg extension", 
+    "seated leg curl",
+    "calf raise",
+    "straight leg calf raise",
+    # Upper body - push
+    "chest press",
+    "flat wide grip chest press",
+    "shoulder press",
+    "tricep extension",
+    # Upper body - pull
+    "lat pulldown",
+    "wide grip lat pulldown",
+    "row",
+    "chest supported row",
+    "chest supported flared elbow row",
+    "pulldown",
+    # Arms
+    "preacher curl",
+    "bicep curl",
+]
+
 # ====================== Service Class =======================
 class RAGService:
     def __init__(self) -> None:
@@ -134,7 +150,9 @@ class RAGService:
     # ================== Public API ==================
 
     def get_ai_response(self, history: List[ChatMessage]) -> HistoryChatResponse:
-        profile = self._rebuild_profile(history)
+        # Convert ChatMessage history to dict format for profile_logic
+        history_dict = [{'role': turn.role, 'content': turn.content} for turn in history]
+        profile = profile_logic_rebuild(history_dict)
         # Persist the most recent profile for prompt builders that reference it
         try:
             setattr(self, 'last_profile', dict(profile))
@@ -329,26 +347,21 @@ class RAGService:
                 # Dynamic k: short queries benefit from a slightly larger k
                 q_words = len((last_user or "").split())
                 dyn_k = 5 if q_words <= 3 else settings.max_retrieval_chunks
+                # Augment ambiguous queries with conversation context
+                rag_query = last_user
+                if q_words < 10 or any(word in (last_user or "").lower() for word in ["which", "better", "vs", "versus"]):
+                    context_keywords = self._extract_workout_context_from_history(history[-4:] if history else [])
+                    if context_keywords:
+                        rag_query = f"{last_user} {context_keywords}"
+                        logger.info("Augmented RAG query with context: '%s' -> '%s'", last_user, rag_query)
                 # Use hybrid RRF retrieval for better results
-                retrieved = self._rag_index.hybrid_retrieve(last_user, k=dyn_k)  # type: ignore
-                logger.info("RAG retrieval successful: %d results for query '%s'", len(retrieved), last_user)
+                retrieved = self._rag_index.hybrid_retrieve(rag_query, k=dyn_k)  # type: ignore
+                logger.info("RAG retrieval successful: %d results for query '%s'", len(retrieved), rag_query)
                 for i, r in enumerate(retrieved):
                     logger.info("Retrieved %d: [%s] %s...", i, r['source'], r['text'][:100])
         except Exception as e:  # noqa: BLE001
             logger.warning("RAG retrieval failed: %s", e)
             retrieved = []
-
-        retrieved_strings: List[str] = []
-        if retrieved:
-            # Build context block per spec
-            context_lines = []
-            for r in retrieved:
-                chunk_text = r['text'].strip()
-                if len(chunk_text) > 500:
-                    chunk_text = chunk_text[:500] + '...'
-                # Don't include source citations - just use the text naturally
-                context_lines.append(chunk_text)
-            retrieved_strings = context_lines
 
         # Check if we have enough context to provide helpful advice without asking questions
         conversation_context = self._extract_conversation_context(history) if history else {}
@@ -361,38 +374,62 @@ class RAGService:
         )
         
         # Special handling for workout split questions - these should always get specific guidance
-        is_workout_split_question = any(term in (last_user or "").lower() for term in [
+        # Check both current message and recent conversation history
+        workout_split_terms = [
             "workout split", "training split", "split", "routine", "schedule", "full body", 
             "upper lower", "push pull", "ppl", "how often", "frequency", "workout", "training"
-        ])
+        ]
+        is_workout_split_question = any(term in (last_user or "").lower() for term in workout_split_terms)
+        # Also check recent history for workout split context
+        if not is_workout_split_question and history:
+            recent_messages = history[-4:]  # Last 4 messages
+            for msg in recent_messages:
+                if any(term in msg.content.lower() for term in workout_split_terms):
+                    is_workout_split_question = True
+                    break
 
         # Deterministic fallback path when no model configured
         if intent != 'tdee' and not self._model_available():
+            # Convert retrieved chunks to strings for fallback (only used when model unavailable)
+            retrieved_strings: List[str] = []
+            if retrieved:
+                for r in retrieved:
+                    chunk_text = r['text'].strip()
+                    if len(chunk_text) > 500:
+                        chunk_text = chunk_text[:500] + '...'
+                    retrieved_strings.append(chunk_text)
             fallback = self._fallback_general(last_user, retrieved_strings, profile, history)
             return HistoryChatResponse(response=fallback, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
 
-        # If we have sufficient context, be more directive about not asking questions
-        if has_sufficient_context:
-            prompt = self._build_prompt_general(last_user, retrieved, history, is_workout_split_question)
-        else:
-            # For users with minimal context, still try to be helpful but may need to ask clarifying questions
-            prompt = self._build_prompt_general(last_user, retrieved, history, is_workout_split_question)
+        # Detect if this is an exercise-related question
+        exercise_terms = ["exercise", "exercises", "workout", "what should i do", "what to do", "start with", "begin with"]
+        is_exercise_question = any(term in (last_user or "").lower() for term in exercise_terms)
         
-        # Special handling for workout split questions when RAG fails or doesn't find relevant content
-        if is_workout_split_question:
-            # Check if RAG found workout split specific content
-            has_workout_split_content = any(
-                any(term in r.get('text', '').lower() for term in [
-                    'workout split', 'training split', 'full body', 'upper lower', 'push pull', 'ppl',
-                    'monday', 'wednesday', 'friday', 'schedule', 'routine'
-                ])
-                for r in retrieved
-            )
-            
-            if not retrieved or not has_workout_split_content:
-                # Provide specific workout split guidance when RAG doesn't find relevant content
-                workout_split_response = self._get_workout_split_fallback(last_user)
-                return HistoryChatResponse(response=workout_split_response, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
+        # Build prompt with RAG context and user profile
+        prompt = self._build_prompt_general(last_user, retrieved, history, is_workout_split_question)
+        
+        # Special handling for exercise questions: verify we have exercise content
+        if is_exercise_question and retrieved:
+            # Dynamically extract exercises from retrieved KB chunks
+            kb_exercises = self._extract_exercises_from_chunks(retrieved)
+            # Fallback to hardcoded list if extraction found nothing (edge case)
+            if not kb_exercises:
+                kb_exercises = [ex.lower() for ex in KB_EXERCISE_NAMES]
+            # Check if retrieved content contains actual exercise names
+            has_exercise_content = len(kb_exercises) > 0
+            if not has_exercise_content:
+                logger.warning("Exercise question but no exercise content retrieved, may hallucinate exercises")
+            else:
+                logger.debug("Extracted %d exercises from KB chunks: %s", len(kb_exercises), kb_exercises[:5])
+        
+        # Special handling for workout split questions when RAG fails completely
+        # NOTE: We still want to use LLM with retrieved KB content if available, even if not workout-split specific
+        # Only use hardcoded fallback if RAG retrieval completely failed (no chunks at all)
+        if is_workout_split_question and not retrieved:
+            # Only use hardcoded fallback if RAG completely failed to retrieve anything
+            # This is a last resort - normally LLM should use KB content even if not workout-split specific
+            workout_split_response = self._get_workout_split_fallback(last_user)
+            return HistoryChatResponse(response=workout_split_response, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
         
         model_reply = self._generate_response(prompt)
         # Strip cliché safety lines unless the user asked about safety/pain
@@ -403,114 +440,6 @@ class RAGService:
         return HistoryChatResponse(response=model_reply, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
 
     # ================== Internal Helpers ==================
-    def _infer_activity_factor(self, text: str) -> Optional[float]:
-        low = text.lower()
-        job_hits = sum(1 for w in ACTIVE_JOB_WORDS if w in low)
-        train_hits = sum(1 for w in RESISTANCE_TRAINING_WORDS if w in low)
-        days = len(re.findall(r"(\b\d\s*days?\b|\b\d\s*x\s*per\s*week\b|\b\d\s*/\s*7\b)", low))
-        hours = len(re.findall(r"\b\d{1,2}\s*hours?\b", low))
-        if job_hits == 0 and train_hits == 0:
-            return None
-        if job_hits and train_hits:
-            return ACTIVITY_FACTORS['moderate']
-        if job_hits:
-            if 'construction' in low or 'warehouse' in low or hours >= 2 and days >= 1:
-                return ACTIVITY_FACTORS['moderate']
-            return ACTIVITY_FACTORS['light']
-        if train_hits:
-            freq_match = re.search(r"(\b3|4|5)\s*(x|times)?\s*(a|per)?\s*week", low)
-            if freq_match:
-                return ACTIVITY_FACTORS['light']
-            return ACTIVITY_FACTORS['sedentary']
-        return None
-
-    def _parse_profile_facts(self, text: str) -> Dict[str, Optional[Any]]:
-        lower = text.lower()
-        out: Dict[str, Optional[Any]] = {'sex': None, 'age': None, 'weight_kg': None, 'height_cm': None, 'activity_factor': None}
-        g = RE_GENDER.search(lower)
-        if g:
-            first = g.group(1).lower()
-            out['sex'] = 'male' if first[0] == 'm' or 'man' in first or 'boy' in first else 'female'
-        a = RE_AGE.search(lower)
-        if a:
-            try:
-                age = float(a.group(1))
-                if 10 < age < 90:
-                    out['age'] = age
-            except Exception:  # noqa: BLE001
-                pass
-        # Robust weight extraction: match 'I weigh 150 pounds', 'my weight is 150 lbs', 'weighing 150 pounds', 'weight: 150 lbs', etc.
-        w = RE_WEIGHT.search(lower)
-        if not w:
-            import re
-            weight_patterns = [
-                r"(?:i weigh|i am weighing|my weight is|my current weight is|current weight is|weight is|weight:|weighing|weight=)\s*(\d{2,3})\s*(kg|kilograms|lbs|lb|pounds?)",
-                r"(\d{2,3})\s*(kg|kilograms|lbs|lb|pounds?)\s*(is my weight|weight)"
-            ]
-            for pat in weight_patterns:
-                alt_weight = re.search(pat, lower)
-                if alt_weight:
-                    val = float(alt_weight.group(1)); unit = alt_weight.group(2).lower()
-                    out['weight_kg'] = val if 'kg' in unit else val * 0.4536
-                    break
-        else:
-            try:
-                val = float(w.group(1)); unit = w.group(2).lower()
-                out['weight_kg'] = val if 'kg' in unit else val * 0.4536
-            except Exception:  # noqa: BLE001
-                pass
-        h = RE_HEIGHT_FT_IN.search(lower) or RE_HEIGHT_FT_IN_WORDS.search(lower)
-        if not h:
-            loose = EXTRA_HEIGHT_FT_IN_LOOSE.search(lower)
-            if loose:
-                try:
-                    ft_tmp = int(loose.group(1)); in_tmp = int(loose.group(2))
-                    if 0 <= in_tmp <= 11:
-                        h = loose
-                except Exception:
-                    pass
-        if h:
-            try:
-                ft = float(h.group(1)); inc = float(h.group(2))
-                out['height_cm'] = (ft*12 + inc) * 2.54
-            except Exception:  # noqa: BLE001
-                pass
-        else:
-            hcm = RE_HEIGHT_CM.search(lower)
-            if hcm:
-                try:
-                    out['height_cm'] = float(hcm.group(1))
-                except Exception:
-                    pass
-            else:
-                hin = RE_HEIGHT_IN.search(lower)
-                if hin:
-                    try:
-                        out['height_cm'] = float(hin.group(1)) * 2.54
-                    except Exception:
-                        pass
-        for k,f in ACTIVITY_FACTORS.items():
-            if k in lower:
-                out['activity_factor'] = f
-                break
-        if out['activity_factor'] is None:
-            inferred = self._infer_activity_factor(text)
-            if inferred:
-                out['activity_factor'] = inferred
-        return out
-
-    def _rebuild_profile(self, history: List[ChatMessage]) -> Dict[str, Optional[Any]]:
-        profile: Dict[str, Optional[Any]] = {'sex': None, 'age': None, 'weight_kg': None, 'height_cm': None, 'activity_factor': None}
-        for turn in history:
-            if turn.role != 'user':
-                continue
-            facts = self._parse_profile_facts(turn.content)
-            for k, v in facts.items():
-                # Only update if v is not None
-                if v is not None:
-                    profile[k] = v
-                # If v is None, keep previous value (do not overwrite)
-        return profile
 
     def _profile_missing(self, profile: Dict[str, Optional[Any]]) -> List[str]:
         return [k for k in FIELD_ORDER if not profile.get(k)]
@@ -568,106 +497,6 @@ class RAGService:
             pass
         return (f"Your body at rest uses about {b} calories (BMR). Daily burn about {low}-{high} calories (TDEE). "
                 f"This is only a rough guess, not medical advice.{bmi_note}")
-
-    def _format_known(self, profile: Dict[str, Optional[float]]) -> str:
-        parts = []
-        if profile['sex']: parts.append(f"sex={profile['sex']}")
-        if profile['age']: parts.append(f"age={int(profile['age'])}")
-        if profile['weight_kg']: parts.append(f"weight_kg={round(profile['weight_kg'],1)}")
-        if profile['height_cm']: parts.append(f"height_cm={int(profile['height_cm'])}")
-        if profile['activity_factor']: parts.append("activity=yes")
-        return ', '.join(parts) if parts else 'none'
-
-    def _build_prompt(self, history: List[ChatMessage], profile: Dict[str, Optional[float]], intent: str, missing: List[str]) -> str:
-        # --- Conversation memory: include latest N turns, summarize older if needed ---
-        MAX_TURNS = 12  # Number of most recent turns to include in full
-        if len(history) > MAX_TURNS:
-            # Summarize older turns
-            summary = self._summarize_history(history[:-MAX_TURNS])
-            trimmed = history[-MAX_TURNS:]
-        else:
-            summary = None
-            trimmed = history
-        # Add explicit user profile and instruction to not re-ask for known info
-        user_profile_lines = [
-            "User Profile:",
-            f"  Sex: {profile.get('sex') if profile.get('sex') else 'unknown'}",
-            f"  Age: {int(profile['age']) if profile.get('age') else 'unknown'}",
-            f"  Weight (kg): {round(profile['weight_kg'],1) if profile.get('weight_kg') else 'unknown'}",
-            f"  Height (cm): {int(profile['height_cm']) if profile.get('height_cm') else 'unknown'}",
-            f"  Activity Level: {profile.get('activity_factor') if profile.get('activity_factor') else 'unknown'}"
-        ]
-        system_lines = [
-            APP_PERSONA,
-            "CRITICAL RULES:",
-            "1. NEVER ask for information that is already provided in the user profile above",
-            "2. NEVER ask follow-up questions unless absolutely necessary for safety reasons",
-            "3. Use available information to give specific, actionable advice",
-            "4. Be proactive and solution-oriented, not interrogative",
-            "5. Keep responses concise and actionable (1-2 short paragraphs max)",
-            "6. Avoid filler phrases like 'That's a great question' or 'As an AI'",
-            "7. Vary your language naturally - don't use the same phrases repeatedly",
-            "8. Be direct and confident - provide concrete numbers and specific advice when possible",
-            *user_profile_lines
-        ]
-        
-        # Extract conversation context to avoid asking for information already provided
-        conversation_context = ""
-        if history:
-            context = self._extract_conversation_context(history)
-            context_lines = []
-            
-            if context['fitness_level']:
-                context_lines.append(f"Fitness Level: {context['fitness_level']}")
-            if context['goals']:
-                context_lines.append(f"Goals: {', '.join(context['goals'])}")
-            if context['preferred_activities']:
-                context_lines.append(f"Training Focus: {', '.join(context['preferred_activities'])}")
-            if context['access_equipment']:
-                context_lines.append(f"Equipment: {', '.join(context['access_equipment'])}")
-            
-            if context_lines:
-                conversation_context = " | ".join(context_lines)
-        
-        if conversation_context:
-            system_lines.append(f"Conversation Context: {conversation_context}")
-            system_lines.append("USE THIS CONTEXT: Provide specific advice based on the user's fitness level, goals, and preferences. Do NOT ask for information already provided.")
-        
-        if summary:
-            system_lines.append(f"Summary of earlier conversation: {summary}")
-        if intent == 'tdee' and missing:
-            system_lines.append(f"Missing (internal): {','.join(missing)}")
-        convo_lines = []
-        for t in trimmed:
-            if t.role == 'system':
-                convo_lines.append(f"System: {t.content}")
-            elif t.role == 'user':
-                convo_lines.append(f"User: {t.content}")
-            else:
-                convo_lines.append(f"Assistant: {t.content}")
-        prompt = "\n".join([
-            "System: " + " | ".join(system_lines),
-            *convo_lines,
-            "Assistant:"
-        ])
-        return prompt
-
-    def _summarize_history(self, history: List[ChatMessage]) -> str:
-        """
-        Summarize older conversation history into a short, factual summary for prompt context.
-        Only user and assistant turns are included. This is a simple extractive summary.
-        """
-        facts = []
-        for t in history:
-            if t.role == 'user':
-                facts.append(f"User: {t.content}")
-            elif t.role == 'assistant':
-                facts.append(f"Coach: {t.content}")
-        # Limit summary length
-        summary = ' | '.join(facts)
-        if len(summary) > 400:
-            summary = summary[:400] + '...'
-        return summary
 
     def _extract_conversation_context(self, history: List[ChatMessage]) -> Dict[str, Any]:
         """Extract user preferences, goals, and context from conversation history."""
@@ -865,7 +694,14 @@ class RAGService:
                     chunk_text = chunk_text[:500] + "..."
                 safe_chunks.append(chunk_text)
             if safe_chunks:
-                context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + "\n\nCRITICAL: The context above contains specific, expert fitness information from the knowledge base. If ANY information in the context is relevant to the user's question, you MUST use it. Do NOT say you don't have information if the context above contains relevant details. ONLY recommend exercises that are explicitly mentioned in this context. Do NOT add generic exercises (like push-ups, sit-ups, etc.) unless they are specifically mentioned in the context above. If the user asks about an exercise category (e.g., 'chest exercise'), scan the context for ANY mentions of that muscle group or category and recommend the specific exercise(s) listed. Answer naturally and conversationally - do NOT cite sources or reference where the information came from."
+                # Dynamically extract exercises from retrieved chunks for prompt examples
+                kb_exercises = self._extract_exercises_from_chunks(retrieved)
+                # Fallback to hardcoded list if extraction found nothing (shouldn't happen but safety)
+                if not kb_exercises:
+                    kb_exercises = [ex.lower() for ex in KB_EXERCISE_NAMES[:6]]
+                # Build example exercise list for prompt (first 6 exercises found in KB)
+                example_exercises = ", ".join(kb_exercises[:6])
+                context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + f"\n\nCRITICAL EXERCISE RULES:\n1. The context above contains the ONLY exercises you are allowed to recommend. You MUST NOT invent, suggest, or mention ANY exercises that are NOT explicitly listed in the context above.\n2. If the user asks about exercises, scan the context for specific exercise names (e.g., '{example_exercises}', etc.) and recommend ONLY those exercises.\n3. NEVER recommend generic exercises like 'push-ups', 'squats', 'sit-ups', 'bodyweight squats', 'pull-ups', 'lunges', 'burpees', 'planks' (unless the context explicitly mentions these exact exercises).\n4. The context focuses on machine-based exercises for beginners - stick to those recommendations.\n5. If the context lists exercises for a muscle group, recommend THOSE specific exercises and no others.\n6. CRITICAL SETS/REPS RULE: If the context specifies sets and reps (e.g., '1-2 sets of 7-10 reps', '1–2×7–10'), you MUST use EXACTLY those numbers. NEVER use different sets/reps like '3 sets of 8-12 reps' or any other numbers unless they are explicitly written in the context. The context uses '1-2 sets of 7-10 reps' for beginners - use that EXACT specification.\n7. Answer naturally and conversationally - do NOT cite sources or reference where the information came from."
                 
                 # Special emphasis for workout split questions
                 if is_workout_split_question:
@@ -928,10 +764,12 @@ class RAGService:
             f"7. Vary your language naturally - don't use repetitive phrases\n"
             f"8. Be direct and confident - provide concrete numbers and specific advice when possible\n"
             f"9. NEVER reference training schedules, routines, or plans that aren't explicitly mentioned in the conversation or user profile\n"
-            f"10. When the user asks for 'a' or 'one' exercise, recommend ONLY ONE specific exercise from the context that best matches their question. Only list multiple exercises if they explicitly ask for 'exercises' (plural) or 'workouts'. Match exercises to the user's context (gym vs home equipment).\n"
-            f"11. If context is provided above, it contains relevant information - you MUST use it. Never say you don't have information when context is provided. Scan the context carefully for ANY mention of the topic the user is asking about.\n"
+            f"10. When the user asks for exercises: ONLY recommend exercises that are EXPLICITLY mentioned in the context above. NEVER invent, suggest, or add exercises like 'push-ups', 'bodyweight squats', 'sit-ups', 'pull-ups', 'lunges', 'burpees', or 'planks' unless they are specifically listed in the context. The knowledge base focuses on machine-based exercises for beginners - use those.\n"
+            f"10a. SETS AND REPS: If the context specifies sets and reps (like '1-2 sets of 7-10 reps' or '1–2×7–10'), you MUST use EXACTLY those numbers. NEVER change to '3 sets of 8-12 reps' or any other common fitness advice numbers. Use the EXACT sets/reps specification from the context.\n"
+            f"11. If context is provided above, it contains relevant information - you MUST use it. Never say you don't have information when context is provided. Scan the context carefully for ANY mention of the topic the user is asking about, especially exercise names.\n"
             f"12. Answer naturally and conversationally - never cite sources, reference filenames, or mention where information came from.\n"
             f"13. For workout split questions, provide the specific schedules and exercise recommendations naturally. If the knowledge base doesn't contain specific workout split info, provide the standard beginner recommendations: Full body 3x per week (Mon/Wed/Fri with rest days), Upper/Lower 4x per week, or Push/Pull/Legs 6x per week.\n"
+            f"14. If the conversation history mentions workout splits, routines, or hypertrophy training, prioritize strength training and muscle building advice. Only provide cardio advice if the user explicitly asks about cardio.\n"
             f"{profile_text}"
             f"{conversation_context}\n"
             f"Use the user profile and conversation context above for any calculations or advice. Do not ask for information that is already present.\n"
@@ -1010,6 +848,49 @@ class RAGService:
                 return f"Saved activity level is {name} (factor {f})."
         return f"Saved activity factor is {profile['activity_factor']}"
 
+    def _extract_exercises_from_chunks(self, retrieved: List[Dict[str, str]]) -> List[str]:
+        """Extract exercise names dynamically from retrieved KB chunks.
+        
+        Parses the KB format: **Muscle Group**: Exercise Name - description
+        Returns list of exercise names (lowercase for matching).
+        """
+        exercises: List[str] = []
+        seen = set()
+        
+        for chunk in retrieved:
+            chunk_text = chunk.get('text', '')
+            # Parse lines with format: **Muscle**: Exercise - ...
+            for line in chunk_text.splitlines():
+                line = line.strip()
+                # Match format: **Muscle Group**: Exercise Name - description
+                m = re.match(r"^\*\*(.*?)\*\*\s*:\s*([^\-\n\r]+)", line)
+                if m:
+                    exercise_name = m.group(2).strip().lower()
+                    # Clean up any trailing punctuation
+                    exercise_name = exercise_name.rstrip('.,;')
+                    if exercise_name and exercise_name not in seen:
+                        seen.add(exercise_name)
+                        exercises.append(exercise_name)
+        
+        return exercises
+    
+    def _extract_workout_context_from_history(self, recent_messages: List[ChatMessage]) -> str:
+        """Extract workout split keywords from recent conversation history for RAG query augmentation."""
+        workout_keywords = [
+            "workout split", "training split", "split", "routine", "schedule",
+            "full body", "upper lower", "upper/lower", "upper-lower",
+            "push pull", "push/pull", "push-pull", "ppl",
+            "frequency", "hypertrophy", "muscle building", "strength training"
+        ]
+        found_keywords = []
+        for msg in recent_messages:
+            content_lower = msg.content.lower()
+            for keyword in workout_keywords:
+                if keyword in content_lower and keyword not in found_keywords:
+                    found_keywords.append(keyword)
+        # Return as space-separated string for query augmentation
+        return " ".join(found_keywords) if found_keywords else ""
+
     def _get_workout_split_fallback(self, user_message: str) -> str:
         """Provide specific workout split guidance when RAG fails."""
         low_msg = (user_message or "").lower()
@@ -1018,8 +899,8 @@ class RAGService:
             return (
                 "For beginners, a full body split 3 times per week is perfect! "
                 "Do Monday, Wednesday, Friday with rest days between. "
-                "Include exercises for legs (leg press, squats), push (chest press, shoulder press), "
-                "pull (lat pulldown, rows), and core (planks). This hits all major muscle groups efficiently."
+                "Include exercises for legs (leg press, leg extension), push (chest press, shoulder press), "
+                "pull (lat pulldown, chest supported row). This hits all major muscle groups efficiently."
             )
         elif any(term in low_msg for term in ["upper lower", "upper/lower", "upper-lower"]):
             return (
@@ -1159,7 +1040,7 @@ class RAGService:
                     context_sentence = " For muscle building, focus on progressive overload with compound movements. Train each muscle group 2–3 times per week with 1–2 sets of 7–10 reps. Ensure adequate protein intake and recovery."
             elif re.search(r'workout|routine|plan', user_message, re.I):
                 if context.get('fitness_level') == 'beginner':
-                    context_sentence = " Here's a simple beginner routine: Day 1 - Leg press, chest press, lat pulldown (1–2 sets of 7–10 reps each). Day 2 - Rest or light walking. Day 3 - Shoulder press, rows, planks (1–2 sets of 7–10 reps each). Day 4 - Rest. Day 5 - Repeat Day 1. Focus on form and gradually increase weight."
+                    context_sentence = " Here's a simple beginner routine: Day 1 - Leg press, chest press, lat pulldown (1–2 sets of 7–10 reps each). Day 2 - Rest or light walking. Day 3 - Shoulder press, chest supported row, leg extension (1–2 sets of 7–10 reps each). Day 4 - Rest. Day 5 - Repeat Day 1. Focus on form and gradually increase weight."
                 else:
                     context_sentence = " Consider a push/pull/legs split or upper/lower split. Train 4-5 days per week with 1-2 rest days. Focus on compound movements and progressive overload. Include 1-2 cardio sessions for conditioning."
             else:
