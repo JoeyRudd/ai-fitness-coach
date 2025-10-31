@@ -43,7 +43,7 @@ EXPOSE 8000
 # Environment variables (override in deploy)
 ENV ALLOWED_ORIGINS="http://localhost:5173" \
     KNOWLEDGE_BASE_PATH="knowledge_base" \
-    GEMINI_MODEL_NAME="gemini-1.5-flash"
+    OPENROUTER_MODEL="deepseek/deepseek-chat"
 
 # Start the API
 # --app-dir backend ensures module imports resolve from backend/app

@@ -55,7 +55,7 @@ Railway should automatically detect:
 
 ### Environment Variables:
 Set these in Railway dashboard → Settings → Variables:
-- `GEMINI_API_KEY` - Your Google AI API key
+- `OPENROUTER_API_KEY` - Your OpenRouter API key
 - `ALLOWED_ORIGINS` - Your frontend URL (Netlify domain)
 - Any other environment variables your app needs
 

@@ -13,21 +13,19 @@ def client() -> TestClient:
 @pytest.fixture
 def force_fallback(monkeypatch: pytest.MonkeyPatch):
     """Force the service into deterministic fallback (no model)."""
-    orig_model = getattr(rag_service, "_model", None)
-    monkeypatch.setattr(rag_service, "_model", None)
+    monkeypatch.setattr(rag_service, "_model_available", lambda: False)
     yield
-    monkeypatch.setattr(rag_service, "_model", orig_model, raising=False)
+    monkeypatch.setattr(rag_service, "_model_available", lambda: True, raising=False)
 
 
 @pytest.fixture
 def mock_generate(monkeypatch: pytest.MonkeyPatch):
     """Mock the LLM generation path with a fixed return value.
 
-    Sets a sentinel _model (truthy) so normal general intent path is taken.
+    Ensure model path is taken by faking availability.
     Returns a function allowing caller to set the desired reply.
     """
-    sentinel_model = object()
-    monkeypatch.setattr(rag_service, "_model", sentinel_model)
+    monkeypatch.setattr(rag_service, "_model_available", lambda: True)
     state = {"reply": "Fixed reply"}
 
     def _fake(prompt: str) -> str:  # noqa: D401
@@ -42,13 +40,13 @@ def mock_generate(monkeypatch: pytest.MonkeyPatch):
 
 
 @pytest.fixture
-def gemini_mock(monkeypatch: pytest.MonkeyPatch):
-    """Monkeypatch Gemini client LLM call to a deterministic mock response."""
-    from app.services import gemini_client
+def openrouter_mock(monkeypatch: pytest.MonkeyPatch):
+    """Monkeypatch OpenRouter client call to a deterministic mock response."""
+    from app.services import openrouter_client
 
     monkeypatch.setattr(
-        gemini_client,
+        openrouter_client,
         "generate_response",
-        lambda prompt: "[mocked LLM]",
+        lambda prompt, **_: "[mocked LLM]",
     )
-    return gemini_client.generate_response
+    return openrouter_client.generate_response

@@ -12,13 +12,10 @@ class Settings(BaseSettings):
     """Application settings loaded from environment variables / .env.
 
     You can override any field via environment variable with the upper‑case
-    field name, e.g. GEMINI_API_KEY, GEMINI_MODEL_NAME.
+    field name (e.g., OPENROUTER_API_KEY, OPENROUTER_MODEL).
     """
 
-    # Empty default so missing key triggers clean fallback (no invalid key attempts)
-    gemini_api_key: str = Field(default="", alias="GEMINI_API_KEY")
-    # Default to a widely available Gemini 2.5 model
-    gemini_model_name: str = Field(default="gemini-2.5-flash", alias="GEMINI_MODEL_NAME")
+    # (Gemini removed)
     # OpenRouter config
     openrouter_api_key: str = Field(default="", alias="OPENROUTER_API_KEY")
     openrouter_model: str = Field(default="deepseek/deepseek-chat", alias="OPENROUTER_MODEL")

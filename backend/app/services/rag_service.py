@@ -1,7 +1,7 @@
 """RAGService encapsulates the logic previously embedded in main.py.
 
 While the original provided snippet described a /chat endpoint performing RAG over a knowledge base
-and calling Gemini, the actual monolithic file implements a conversational calorie/TDEE assistant.
+and calling an LLM, the actual monolithic file implements a conversational calorie/TDEE assistant.
 We keep all that business logic here without changing functionality, exposing a clean method
 get_ai_response(history) that returns the HistoryChatResponse fields.
 """
@@ -165,7 +165,7 @@ class RAGService:
                         f"Focus on simple, lean sources like chicken, fish, eggs, beans, or Greek yogurt."
                     )
                     return HistoryChatResponse(response=resp, profile=profile, tdee=None, missing=[], asked_this_intent=[], intent='protein')
-                # If weight is missing, fall through to normal logic (Gemini will be prompted)
+                # If weight is missing, fall through to normal logic (LLM will be prompted)
         else:
             last_user = ""
         # Match original behavior of /chat2 endpoint.
@@ -178,7 +178,7 @@ class RAGService:
 
         # Detect intent from last user message
 
-        # Gather all user messages for Gemini context
+        # Gather all user messages for LLM context
         user_history_text = '\n'.join([t.content for t in user_turns])
 
         # Check if this is a TDEE intent or if we're continuing a TDEE conversation
@@ -204,18 +204,18 @@ class RAGService:
             return HistoryChatResponse(response=resp_text, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent='recall')
 
         if intent == 'tdee':
-            # Try Gemini-based TDEE extraction first, using all user messages as context
-            gemini_result = None
+            # Try LLM-based TDEE extraction first, using all user messages as context
+            llm_result = None
             try:
-                gemini_result = or_extract_tdee(user_history_text)
+                llm_result = or_extract_tdee(user_history_text)
             except Exception as e:
                 logger.warning(f"OpenRouter TDEE extraction failed: {e}")
 
             # Merge Gemini result with existing profile
             merged_profile = dict(profile)
-            if isinstance(gemini_result, dict):
+            if isinstance(llm_result, dict):
                 for k in ['sex','age','weight_kg','height_cm','activity_factor']:
-                    v = gemini_result.get(k)
+                    v = llm_result.get(k)
                     if v is not None:
                         merged_profile[k] = v
 
@@ -228,9 +228,9 @@ class RAGService:
             if enough_info:
                 tdee_val = None
                 bmr_val = None
-                if gemini_result and gemini_result.get('tdee') and gemini_result.get('bmr'):
-                    tdee_val = gemini_result['tdee']
-                    bmr_val = gemini_result['bmr']
+                if llm_result and llm_result.get('tdee') and llm_result.get('bmr'):
+                    tdee_val = llm_result['tdee']
+                    bmr_val = llm_result['bmr']
                 else:
                     bmr_val, tdee_val = self._compute_tdee(
                         merged_profile['sex'], merged_profile['weight_kg'], merged_profile['height_cm'], merged_profile['age'], merged_profile['activity_factor']

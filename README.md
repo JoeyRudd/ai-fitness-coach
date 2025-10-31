@@ -188,7 +188,7 @@ make test
 ```json
 {
   "message": "AI Fitness Coach running",
-  "model": "gemini-1.5-flash",
+  "model": "deepseek/deepseek-chat",
   "rag_status": "ready"
 }
 ```
@@ -245,7 +245,7 @@ sequenceDiagram
     participant F as Frontend
     participant B as Backend
     participant R as RAG System
-    participant L as Gemini LLM
+    participant L as OpenRouter LLM
     participant K as Knowledge Base
 
     U->>F: Types fitness question
@@ -304,8 +304,8 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 
 | Name | Scope | Default | Description |
 |------|-------|---------|-------------|
-| GEMINI_API_KEY | backend | (empty) | Google Generative AI API key. If missing, system returns deterministic fallback instead of failing. |
-| GEMINI_MODEL / GEMINI_MODEL_NAME | backend | gemini-1.5-flash | Model name. `gemini_client` reads `GEMINI_MODEL`; settings class uses `GEMINI_MODEL_NAME`. Either works. |
+| OPENROUTER_API_KEY | backend | (empty) | OpenRouter API key used by backend to call the LLM. |
+| OPENROUTER_MODEL | backend | deepseek/deepseek-chat | OpenRouter model slug. |
 | ALLOWED_ORIGINS | backend | http://localhost:5173 | Comma-separated list for CORS (frontend dev origin). |
 | KNOWLEDGE_BASE_PATH | backend | knowledge_base | Override location of markdown knowledge base. |
 | EMBEDDING_MODEL_NAME | backend | all-MiniLM-L6-v2 | Sentence transformer model used for embeddings. |

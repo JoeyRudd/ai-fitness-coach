@@ -4,7 +4,6 @@ uvicorn[standard]>=0.25.0
 pydantic>=2.5.0
 python-multipart>=0.0.10
 pydantic-settings>=2.0.0
-google-generativeai>=0.8.3
 
 # Lightweight RAG dependencies (faster build)
 numpy>=1.24.0

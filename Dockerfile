@@ -26,7 +26,7 @@ EXPOSE 8000
 # Environment variables
 ENV ALLOWED_ORIGINS="http://localhost:5173" \
     KNOWLEDGE_BASE_PATH="knowledge_base" \
-    GEMINI_MODEL_NAME="gemini-1.5-flash"
+    OPENROUTER_MODEL="deepseek/deepseek-chat"
 
 # Start the API
 CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--app-dir", "backend"]

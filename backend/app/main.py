@@ -37,7 +37,7 @@ async def root() -> dict[str, str]:
 
     return {
         "message": "AI Fitness Coach running",
-        "model": settings.gemini_model_name,
+        "model": settings.openrouter_model,
         "rag_status": rag_status,
         "rag_backend": rag_backend,
         "rag_chunks": str(chunk_count),

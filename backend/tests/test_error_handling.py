@@ -22,9 +22,9 @@ class TestErrorHandling:
             # Should handle gracefully - check what status code you want
             assert response.status_code in [500, 422, 503]
     
-    def test_gemini_api_failure(self, client: TestClient):
-        """Test behavior when Gemini API fails."""
-        with patch('google.generativeai.GenerativeModel.generate_content') as mock:
+    def test_llm_api_failure(self, client: TestClient):
+        """Test behavior when OpenRouter (LLM) API fails."""
+        with patch('app.services.openrouter_client._post_chat') as mock:
             mock.side_effect = Exception("API key invalid or quota exceeded")
             
             response = client.post("/api/v1/chat", json={
