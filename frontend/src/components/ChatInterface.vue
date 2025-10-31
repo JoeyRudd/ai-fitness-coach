@@ -1,7 +1,7 @@
 <template>
   <div class="relative h-full w-full flex flex-col">
     <!-- Chat History - Takes up all available space, scrollable -->
-    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-2 sm:py-4 pb-0 min-h-0">
+    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-2 sm:py-4 pb-32 sm:pb-36 min-h-0">
       <!-- Welcome Message -->
       <div v-if="history.length === 1" class="text-center py-4 sm:py-6">
         <div class="text-2xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-3 sm:mb-4">
@@ -162,7 +162,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue';
+import { ref, computed, nextTick, watch } from 'vue';
 import axios from 'axios';
 
 // Types
@@ -270,6 +270,11 @@ async function scrollToBottom() {
   }
 }
 
+// Watch for history or loading changes and auto-scroll
+watch([() => history.value.length, () => loading.value], () => {
+  scrollToBottom();
+}, { flush: 'post' });
+
 // History summarization
 function maybeSummarizeHistory() {
   if (history.value.length <= 60) return;
@@ -314,7 +319,9 @@ async function sendMessage() {
   // Update status to 'sent' immediately
   userMessage.status = 'sent';
   
+  // Set loading immediately and ensure UI updates
   loading.value = true;
+  await nextTick(); // Ensure Vue updates the DOM to show loading indicator
   maybeSummarizeHistory();
 
   const endpoint = resolveEndpoint();
@@ -353,6 +360,7 @@ async function sendMessage() {
     askedThisIntent.value = data.asked_this_intent || [];
     intent.value = data.intent || '';
     emit('responseReceived', data.response);
+    await scrollToBottom(); // Scroll immediately after receiving response
   } catch (e: any) {
     if (e?.response) {
       console.error('[ChatInterface] Chat request failed', {
@@ -369,6 +377,7 @@ async function sendMessage() {
     userMessage.status = 'error';
     
     history.value.push({ role: 'assistant', content: 'Sorry, there was an error processing that. Please try again.', timestamp: new Date() });
+    await scrollToBottom(); // Scroll after error message
   } finally {
     loading.value = false;
     scrollToBottom();

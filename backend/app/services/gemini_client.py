@@ -16,10 +16,12 @@ import logging
 import os
 import json
 
-    try:  # Import guarded so environments without the package still work gracefully.
+try:  # Import guarded so environments without the package still work gracefully.
     import google.generativeai as genai  # type: ignore
+    from google.genai import types  # type: ignore
 except Exception:  # pragma: no cover
     genai = None  # type: ignore
+    types = None  # type: ignore
 
 logger = logging.getLogger(__name__)
 
@@ -120,13 +122,27 @@ def generate_response(prompt: str) -> str:
         # Optional safety override via env flag (BLOCK_NONE lowers blocking; use responsibly)
         safety_override = os.getenv("GEMINI_SAFETY_OVERRIDE", "false").lower() in {"1","true","yes"}
         safety_settings = None
-        if safety_override and genai is not None:
+        if safety_override and genai is not None and types is not None:
+            # Use direct import of types for cleaner access
             safety_settings = [
-                {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                {"category": "HARM_CATEGORY_SEXUAL", "threshold": "BLOCK_NONE"},
+                {
+                    "category": types.HarmCategory.HARM_CATEGORY_HARASSMENT,
+                    "threshold": types.HarmBlockThreshold.BLOCK_NONE,
+                },
+                {
+                    "category": types.HarmCategory.HARM_CATEGORY_HATE_SPEECH,
+                    "threshold": types.HarmBlockThreshold.BLOCK_NONE,
+                },
+                {
+                    "category": types.HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT,
+                    "threshold": types.HarmBlockThreshold.BLOCK_NONE,
+                },
+                {
+                    "category": types.HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT,
+                    "threshold": types.HarmBlockThreshold.BLOCK_NONE,
+                },
             ]
+            logger.info("Safety override enabled in gemini_client - using BLOCK_NONE for all harm categories")
 
         response = _model.generate_content(safe_prompt, safety_settings=safety_settings)  # type: ignore
         # Prefer robust extraction over response.text quick accessor

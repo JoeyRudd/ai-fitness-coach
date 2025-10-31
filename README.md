@@ -67,7 +67,7 @@ Hypertrofit now supports Progressive Web App functionality, allowing users to in
 | Component | Technology | Purpose |
 |-----------|------------|---------|
 | Framework | FastAPI | High-performance async API framework |
-| AI Model | Google Gemini | LLM for generating responses |
+| AI Model | OpenRouter (DeepSeek) | LLM for generating responses |
 | RAG System | BM25 + TF-IDF | Intelligent knowledge retrieval |
 | Data Models | Pydantic | Type-safe request/response validation |
 | Deployment | Railway + Docker | Cloud hosting with containerization |
@@ -95,7 +95,7 @@ Hypertrofit now supports Progressive Web App functionality, allowing users to in
 ### Prerequisites
 - Python 3.11+
 - Node.js 18+
-- Google Gemini API key
+- OpenRouter API key
 
 ### Installation & Setup
 ```bash
@@ -103,7 +103,9 @@ Hypertrofit now supports Progressive Web App functionality, allowing users to in
 git clone https://github.com/JoeyRudd/ai-fitness-coach.git
 cd ai-fitness-coach
 make install
-export GEMINI_API_KEY=your_api_key_here
+export OPENROUTER_API_KEY=your_openrouter_key
+# Optional model override (defaults to deepseek/deepseek-chat)
+export OPENROUTER_MODEL=deepseek/deepseek-chat
 make backend
 
 # Setup frontend (new terminal)
@@ -115,7 +117,12 @@ npm run dev
 ### Environment Variables
 ```bash
 # Backend
-GEMINI_API_KEY=your_google_ai_api_key
+OPENROUTER_API_KEY=your_openrouter_key
+# Optional; default is deepseek/deepseek-chat
+OPENROUTER_MODEL=deepseek/deepseek-chat
+# Optional but recommended for OpenRouter analytics
+OPENROUTER_SITE_URL=http://localhost:5173
+OPENROUTER_APP_TITLE=AI Fitness Coach
 ALLOWED_ORIGINS=http://localhost:5173
 
 # Frontend
@@ -193,7 +200,7 @@ make test
 graph TB
     A[👤 User] --> B[Frontend Vue.js]
     B --> C[FastAPI Backend]
-    C --> D[Google Gemini LLM]
+    C --> D[OpenRouter LLM]
     C --> E[RAG System]
     E --> F[Knowledge Base]
     E --> G[Profile Logic]
@@ -221,7 +228,7 @@ graph TD
     D --> G[Markdown Knowledge Base]
     E --> G
     F --> G
-    C --> H[Gemini LLM]
+    C --> H[OpenRouter LLM]
     C --> I[Profile Logic]
     C --> J[TDEE Calculator]
     I --> K[User Profiles]
@@ -312,7 +319,7 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
   - `rag_service.RAGService`: Intent detection (TDEE vs general), profile extraction, recall, TDEE calculation, RAG grounding, LLM call / fallback, **workout split detection and fallback responses**.
   - `rag_index.RAGIndex`: Loads markdown, chunks, and uses **BM25 as primary retrieval method** for better short query handling. Falls back to TF-IDF (scikit-learn) or sentence-transformers (MiniLM) with NumPy/FAISS for similarity.
   - `profile_logic.py`: Fact extraction & calculations.
-  - `gemini_client.py`: Gemini SDK wrapper with simple generation call.
+  - `openrouter_client.py`: OpenRouter client using OpenAI-compatible chat completions.
 - **Knowledge Base:** Local markdown sources in `knowledge_base/` ground general fitness answers with **comprehensive workout split information**.
 - **Fallback Logic:** If LLM not configured, deterministic supportive responses with **specific workout split guidance**.
 

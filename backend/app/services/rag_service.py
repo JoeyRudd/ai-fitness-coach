@@ -10,7 +10,8 @@ from __future__ import annotations
 import logging, os, re
 from typing import List, Dict, Any, Optional, Tuple
 
-import google.generativeai as genai
+from app.services.openrouter_client import generate_response as or_generate_response
+from app.services.openrouter_client import extract_tdee_from_text as or_extract_tdee
 from fastapi import HTTPException
 
 from app.core.config import settings
@@ -38,7 +39,7 @@ APP_PERSONA = (
     "Avoid repetitive phrases or robotic language. "
     "Focus on practical guidance that beginners can actually follow."
 )
-GEMINI_MODEL_NAME = settings.gemini_model_name
+# OpenRouter model name is configured via settings
 # Prompt instruction block appended after persona & optional context
 ANTI_HALLUCINATION_RULES = (
     "If something isn't in the context or user message, provide general but safe guidance based on what you do know. "
@@ -110,9 +111,8 @@ FIELD_HUMAN = {
 # ====================== Service Class =======================
 class RAGService:
     def __init__(self) -> None:
-        self._model = None
         self._desired_length = "medium"
-        self._configure_genai()
+        # No model initialization needed for OpenRouter
         # RAG index load - handle missing ML dependencies gracefully
         try:
             self._rag_index = RAGIndex()
@@ -128,17 +128,8 @@ class RAGService:
             self._rag_index = None
 
     # ----- Model init -----
-    def _configure_genai(self) -> None:
-        api_key = settings.gemini_api_key
-        if not api_key:
-            logger.error("GEMINI_API_KEY missing")
-            return
-        try:
-            genai.configure(api_key=api_key)
-            self._model = genai.GenerativeModel(GEMINI_MODEL_NAME)
-            logger.info("Gemini model initialized")
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"Gemini init failed: {e}")
+    def _model_available(self) -> bool:
+        return bool(settings.openrouter_api_key)
 
     # ================== Public API ==================
 
@@ -216,10 +207,9 @@ class RAGService:
             # Try Gemini-based TDEE extraction first, using all user messages as context
             gemini_result = None
             try:
-                from app.services.gemini_client import extract_tdee_from_text
-                gemini_result = extract_tdee_from_text(user_history_text)
+                gemini_result = or_extract_tdee(user_history_text)
             except Exception as e:
-                logger.warning(f"Gemini TDEE extraction failed: {e}")
+                logger.warning(f"OpenRouter TDEE extraction failed: {e}")
 
             # Merge Gemini result with existing profile
             merged_profile = dict(profile)
@@ -331,8 +321,8 @@ class RAGService:
                 chunk_text = r['text'].strip()
                 if len(chunk_text) > 500:
                     chunk_text = chunk_text[:500] + '...'
-                # Prefix with bracketed source so the model can optionally cite
-                context_lines.append(f"[{r['source']}] {chunk_text}")
+                # Don't include source citations - just use the text naturally
+                context_lines.append(chunk_text)
             retrieved_strings = context_lines
 
         # Check if we have enough context to provide helpful advice without asking questions
@@ -352,7 +342,7 @@ class RAGService:
         ])
 
         # Deterministic fallback path when no model configured
-        if intent != 'tdee' and not self._model:
+        if intent != 'tdee' and not self._model_available():
             fallback = self._fallback_general(last_user, retrieved_strings, profile, history)
             return HistoryChatResponse(response=fallback, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
 
@@ -845,11 +835,11 @@ class RAGService:
                     chunk_text = chunk_text[:500] + "..."
                 safe_chunks.append(chunk_text)
             if safe_chunks:
-                context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + "\n\nCRITICAL: This context contains specific, expert fitness information. ALWAYS use the specific exercises, techniques, and advice mentioned in this context rather than generic fitness advice. If the context mentions specific exercises like 'Flat wide grip chest press' or 'Chest supported flared elbow row', use those exact names and details."
+                context_block = "\n\nContext:\n" + "\n".join(safe_chunks) + "\n\nCRITICAL: The context above contains specific, expert fitness information from the knowledge base. If ANY information in the context is relevant to the user's question, you MUST use it. Do NOT say you don't have information if the context above contains relevant details. ONLY recommend exercises that are explicitly mentioned in this context. Do NOT add generic exercises (like push-ups, sit-ups, etc.) unless they are specifically mentioned in the context above. If the user asks about an exercise category (e.g., 'chest exercise'), scan the context for ANY mentions of that muscle group or category and recommend the specific exercise(s) listed. Answer naturally and conversationally - do NOT cite sources or reference where the information came from."
                 
                 # Special emphasis for workout split questions
                 if is_workout_split_question:
-                    context_block += "\n\nWORKOUT SPLIT FOCUS: When answering workout split questions, ALWAYS reference the specific workout splits mentioned in the context (Full Body, Upper/Lower, etc.) and provide the exact schedules and exercise recommendations from the knowledge base. Use the bracketed source filenames to ground your advice. If the context doesn't contain specific workout split information, supplement with the standard beginner recommendations: Full body 3x per week (Mon/Wed/Fri), Upper/Lower 4x per week, or Push/Pull/Legs 6x per week."
+                    context_block += "\n\nWORKOUT SPLIT FOCUS: When answering workout split questions, use the specific workout splits mentioned in the context (Full Body, Upper/Lower, etc.) and provide the exact schedules and exercise recommendations. Answer naturally without citing sources. If the context doesn't contain specific workout split information, supplement with the standard beginner recommendations: Full body 3x per week (Mon/Wed/Fri), Upper/Lower 4x per week, or Push/Pull/Legs 6x per week."
         # Always include user profile for general advice
         profile = getattr(self, 'last_profile', None)
         user_profile_lines = []
@@ -893,7 +883,7 @@ class RAGService:
         if mode == "short":
             length_instruction = "Keep it very brief: 1–2 sentences max."
         elif mode == "long":
-            length_instruction = "Provide up to 2 short paragraphs. Use bullets only if essential."
+            length_instruction = "Provide clear, beginner-friendly guidance in 2–3 short paragraphs max. Keep explanations simple and avoid jargon. Use bullets only if it makes it easier to understand."
         else:
             length_instruction = "One short paragraph (3–5 concise sentences)."
         prompt = (
@@ -908,9 +898,10 @@ class RAGService:
             f"7. Vary your language naturally - don't use repetitive phrases\n"
             f"8. Be direct and confident - provide concrete numbers and specific advice when possible\n"
             f"9. NEVER reference training schedules, routines, or plans that aren't explicitly mentioned in the conversation or user profile\n"
-            f"10. If the user asks for exercises, list 4–8 specific exercises from the context, using their exact names (e.g., 'Flat wide grip chest press').\n"
-            f"11. When helpful, reference the bracketed source filename from the Context to ground your advice.\n"
-            f"12. For workout split questions, ALWAYS provide the specific schedules and exercise recommendations from the knowledge base, including exact days and exercises. If the knowledge base doesn't contain specific workout split info, provide the standard beginner recommendations: Full body 3x per week (Mon/Wed/Fri with rest days), Upper/Lower 4x per week, or Push/Pull/Legs 6x per week.\n"
+            f"10. When the user asks for 'a' or 'one' exercise, recommend ONLY ONE specific exercise from the context that best matches their question. Only list multiple exercises if they explicitly ask for 'exercises' (plural) or 'workouts'. Match exercises to the user's context (gym vs home equipment).\n"
+            f"11. If context is provided above, it contains relevant information - you MUST use it. Never say you don't have information when context is provided. Scan the context carefully for ANY mention of the topic the user is asking about.\n"
+            f"12. Answer naturally and conversationally - never cite sources, reference filenames, or mention where information came from.\n"
+            f"13. For workout split questions, provide the specific schedules and exercise recommendations naturally. If the knowledge base doesn't contain specific workout split info, provide the standard beginner recommendations: Full body 3x per week (Mon/Wed/Fri with rest days), Upper/Lower 4x per week, or Push/Pull/Legs 6x per week.\n"
             f"{profile_text}"
             f"{conversation_context}\n"
             f"Use the user profile and conversation context above for any calculations or advice. Do not ask for information that is already present.\n"
@@ -925,77 +916,37 @@ class RAGService:
         return prompt
 
     def _generate_response(self, prompt: str) -> str:
-        if not self._model:
-            return "Model not ready. Set GEMINI_API_KEY and retry."
-        try:
-            mode = getattr(self, "_desired_length", "medium")
-            max_tokens = 300
-            if mode == "short":
-                max_tokens = 120
-            elif mode == "long":
-                max_tokens = 400
+        if not self._model_available():
+            return "Model not ready. Set OPENROUTER_API_KEY and retry."
+        mode = getattr(self, "_desired_length", "medium")
+        max_tokens = 500
+        if mode == "short":
+            max_tokens = 150
+        elif mode == "long":
+            max_tokens = 700
+        text = or_generate_response(prompt, max_tokens=max_tokens, temperature=0.55)
 
-            # Optional safety override via env flag (BLOCK_NONE lowers blocking; use responsibly)
-            safety_override = os.getenv("GEMINI_SAFETY_OVERRIDE", "false").lower() in {"1","true","yes"}
-            safety_settings = None
-            if safety_override:
-                safety_settings = [
-                    {"category": "HARM_CATEGORY_DANGEROUS_CONTENT", "threshold": "BLOCK_NONE"},
-                    {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
-                    {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"},
-                    {"category": "HARM_CATEGORY_SEXUAL", "threshold": "BLOCK_NONE"},
-                ]
+        def truncate_at_sentence(text_str: str, max_len: int) -> str:
+            if len(text_str) <= max_len:
+                return text_str
+            truncated = text_str[:max_len]
+            last_period = truncated.rfind('.')
+            last_exclamation = truncated.rfind('!')
+            last_question = truncated.rfind('?')
+            last_sentence_end = max(last_period, last_exclamation, last_question)
+            if last_sentence_end > max_len * 0.7:
+                return text_str[: last_sentence_end + 1].strip()
+            return truncated.rstrip() + '...'
 
-            resp = self._model.generate_content(
-                prompt,
-                generation_config=genai.types.GenerationConfig(  # type: ignore
-                    temperature=0.55,
-                    max_output_tokens=max_tokens,
-                    top_p=0.9,
-                    top_k=40
-                ),
-                safety_settings=safety_settings
-            )
-            # Robust text extraction without relying on resp.text
-            text = ""
-            try:
-                candidates = getattr(resp, "candidates", []) or []
-                if candidates:
-                    content_obj = getattr(candidates[0], "content", None)
-                    parts_list = getattr(content_obj, "parts", []) if content_obj else []
-                    chunks: list[str] = []
-                    for part in parts_list:
-                        t = getattr(part, "text", None)
-                        if isinstance(t, str) and t.strip():
-                            chunks.append(t.strip())
-                    if chunks:
-                        text = "\n".join(chunks)
-                if not text:
-                    finish_reason = getattr(candidates[0], "finish_reason", None) if candidates else None
-                    logger.warning("Gemini returned no text (finish_reason=%s) in RAG path", finish_reason)
-                    if finish_reason in (2, "SAFETY"):
-                        return "I couldn't answer that due to safety filters. Please rephrase or ask something else."
-            except Exception:
-                pass
-            if not text and hasattr(resp, "text") and getattr(resp, "text"):
-                try:
-                    text = str(resp.text).strip()
-                except Exception:
-                    text = ""
-            # Enforce short/medium caps post-generation
-            if mode == "short":
-                parts = re.split(r"([.!?])", text)
-                if parts:
-                    text = (parts[0] + (parts[1] if len(parts) > 1 else '.')).strip()
-            elif mode == "medium" and len(text) > 600:
-                trimmed = text[:600].rstrip()
-                if not trimmed.endswith('.'):
-                    trimmed += '...'
-                text = trimmed
-            return text
-        except Exception as e:  # noqa: BLE001
-            logger.error(f"Gemini failure: {e}")
-            return "Sorry. Trouble answering now. Try again soon."
+        if mode == "short":
+            parts = re.split(r"([.!?])", text)
+            if parts:
+                text = (parts[0] + (parts[1] if len(parts) > 1 else '.')).strip()
+        elif mode == "medium" and len(text) > 600:
+            text = truncate_at_sentence(text, 600)
+        elif mode == "long" and len(text) > 800:
+            text = truncate_at_sentence(text, 800)
+        return text
 
     def _handle_recall(self, field: str, profile: Dict[str, Any]) -> str:
         val = profile.get(field)

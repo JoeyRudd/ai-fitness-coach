@@ -23,6 +23,22 @@
             </div>
         </div>
 
+        <!-- Hero -->
+        <div v-if="showHero" class="w-full bg-white dark:bg-[#0c151b] border-b border-gray-200/70 dark:border-neutral-800">
+            <div class="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
+                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50">Welcome to Hypertrofit</h1>
+                <p class="mt-2 text-gray-700 dark:text-gray-300 text-sm sm:text-base">Your friendly, beginner-focused fitness and nutrition coach. Simple steps, clear guidance, safety first.</p>
+                <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">Educational only—this is not professional medical advice.</p>
+            </div>
+        </div>
+
+        <!-- Compact disclaimer banner (shown after first message) -->
+        <div v-else class="w-full bg-amber-50 dark:bg-[#1b1408] text-amber-800 dark:text-amber-300 border-b border-amber-200/70 dark:border-amber-900/40">
+            <div class="max-w-3xl mx-auto px-4 sm:px-6 py-2 text-xs sm:text-sm">
+                Educational only—this is not professional medical advice.
+            </div>
+        </div>
+
         <!-- Main Chat Interface - Full Height -->
         <div class="flex-1 min-h-0 flex flex-col relative overflow-hidden">
             <ChatInterface
@@ -106,6 +122,9 @@ interface Interaction {
 
 const interactionHistory = ref<Interaction[]>([]);
 
+// Landing hero state
+const showHero = ref(true);
+
 // Helper function to add interaction
 const addInteraction = (type: string, message: string): void => {
     const timestamp = new Date().toLocaleTimeString();
@@ -116,6 +135,8 @@ const addInteraction = (type: string, message: string): void => {
 const onMessageSent = (message: string): void => {
     console.log("Message sent:", message);
     addInteraction("Message Sent", message);
+    // Hide hero after first message
+    if (showHero.value) showHero.value = false;
 };
 
 const onResponseReceived = (response: string): void => {
