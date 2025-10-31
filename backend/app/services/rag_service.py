@@ -7,7 +7,7 @@ get_ai_response(history) that returns the HistoryChatResponse fields.
 """
 from __future__ import annotations
 
-import logging, os, re
+import logging, re
 from typing import List, Dict, Any, Optional, Tuple
 
 from app.services.openrouter_client import generate_response as or_generate_response
@@ -153,7 +153,25 @@ class RAGService:
                 "protein intake",
                 "protein per day"
             ]
-            if any(p in last_user_lower for p in protein_patterns):
+            # Check if current message is a protein question
+            is_protein_question = any(p in last_user_lower for p in protein_patterns)
+            
+            # Check if this is a follow-up providing weight after a protein question
+            is_protein_followup = False
+            if not is_protein_question and len(history) >= 2:
+                # Check if previous assistant response was about protein
+                prev_assistant = None
+                for turn in reversed(history[:-1]):  # Check all but the last message
+                    if turn.role == 'assistant':
+                        prev_assistant = turn.content
+                        break
+                if prev_assistant and ("protein" in prev_assistant.lower() or "Share your weight" in prev_assistant):
+                    # Check if current message is just providing weight (numbers + weight units)
+                    weight_match = re.search(r'\b(\d{2,3})\s*(?:lbs?|pounds?|kg|kilograms?)\b', last_user_lower)
+                    if weight_match:
+                        is_protein_followup = True
+            
+            if is_protein_question or is_protein_followup:
                 weight_kg = profile.get('weight_kg')
                 if weight_kg:
                     weight_lb = round(weight_kg / 0.4536)
@@ -165,10 +183,17 @@ class RAGService:
                         f"Focus on simple, lean sources like chicken, fish, eggs, beans, or Greek yogurt."
                     )
                     return HistoryChatResponse(response=resp, profile=profile, tdee=None, missing=[], asked_this_intent=[], intent='protein')
-                # If weight is missing, fall through to normal logic (LLM will be prompted)
+                else:
+                    # Provide general recommendation even without weight
+                    resp = (
+                        f"A good target is 0.8–1 gram of protein per pound of body weight per day. "
+                        f"For most people, that's roughly 80–150 grams daily, depending on your weight. "
+                        f"Focus on simple, lean sources like chicken, fish, eggs, beans, or Greek yogurt. "
+                        f"Share your weight if you'd like a more specific target."
+                    )
+                    return HistoryChatResponse(response=resp, profile=profile, tdee=None, missing=[], asked_this_intent=[], intent='protein')
         else:
             last_user = ""
-        # Match original behavior of /chat2 endpoint.
         user_turns = [t for t in history if t.role == 'user']
         empty_profile_dict = {'sex': None,'age': None,'weight_kg': None,'height_cm': None,'activity_factor': None}
         if not user_turns:
@@ -816,6 +841,9 @@ class RAGService:
         if ("exercise" in msg or "exercises" in msg):
             # For exercise recommendation questions, allow more space to list specific items
             return "medium"
+        # Protein questions need proper explanations, not short responses
+        if "protein" in msg:
+            return "medium"
         if len(msg) <= 60 and ("?" in msg or simple_q):
             return "short"
 
@@ -941,9 +969,22 @@ class RAGService:
             return truncated.rstrip() + '...'
 
         if mode == "short":
-            parts = re.split(r"([.!?])", text)
-            if parts:
-                text = (parts[0] + (parts[1] if len(parts) > 1 else '.')).strip()
+            # For short mode, find the first complete sentence, being careful not to split numbers
+            # Split on sentence boundaries (period, exclamation, question mark followed by space or end)
+            sentences = re.split(r'([.!?])(?:\s+|$)', text)
+            if len(sentences) >= 2:
+                # Take first sentence with its punctuation
+                text = (sentences[0] + sentences[1]).strip()
+                # Safety check: if result is too short or ends with just a digit, try to get more
+                if len(text) < 10 or (text[-2:].endswith(('.', '!', '?')) and text[-3].isdigit()):
+                    # Get first two sentences if available
+                    if len(sentences) >= 4:
+                        text = (sentences[0] + sentences[1] + sentences[2] + sentences[3]).strip()
+            else:
+                # Fallback: just take first part up to first punctuation
+                parts = re.split(r"([.!?])", text)
+                if parts:
+                    text = (parts[0] + (parts[1] if len(parts) > 1 else '.')).strip()
         elif mode == "medium" and len(text) > 600:
             text = truncate_at_sentence(text, 600)
         elif mode == "long" and len(text) > 800:
@@ -1014,7 +1055,7 @@ class RAGService:
             if context['goals'] and context['fitness_level']:
                 if 'muscle_building' in context['goals'] and context['fitness_level'] == 'beginner':
                     if 'gym' in context['access_equipment']:
-                        context_sentence = " For building muscle as a beginner with gym access, do two full-body strength days per week. Focus on compound movements like leg press, chest press, lat pulldown, and shoulder press. Aim for 3-4 sets of 8-12 reps with proper form."
+                        context_sentence = " For building muscle as a beginner with gym access, do three full-body strength days per week. Focus on compound movements like leg press, chest press, lat pulldown, and shoulder press. Aim for 1–2 sets of 7–10 reps with controlled tempo."
                     else:
                         context_sentence = " For building muscle as a beginner, do two full-body strength days per week. Use bodyweight exercises: push-ups, squats, lunges, planks, and resistance bands for rows and presses."
                 elif 'weight_loss' in context['goals']:
@@ -1113,12 +1154,12 @@ class RAGService:
 
             elif re.search(r'muscle|build muscle|strength|stronger', user_message, re.I):
                 if context.get('fitness_level') == 'beginner':
-                    context_sentence = " For building muscle as a beginner, do 2-3 full-body strength days per week. Focus on compound movements: leg press, chest press, lat pulldown, and shoulder press. Do 3-4 sets of 8-12 reps with proper form."
+                    context_sentence = " For building muscle as a beginner, do 2–3 full-body strength days per week. Focus on compound movements: leg press, chest press, lat pulldown, and shoulder press. Do 1–2 sets of 7–10 reps with proper form."
                 else:
-                    context_sentence = " For muscle building, focus on progressive overload with compound movements. Train each muscle group 2-3 times per week with 3-4 sets of 6-12 reps. Ensure adequate protein intake and recovery."
+                    context_sentence = " For muscle building, focus on progressive overload with compound movements. Train each muscle group 2–3 times per week with 1–2 sets of 7–10 reps. Ensure adequate protein intake and recovery."
             elif re.search(r'workout|routine|plan', user_message, re.I):
                 if context.get('fitness_level') == 'beginner':
-                    context_sentence = " Here's a simple beginner routine: Day 1 - Leg press, chest press, lat pulldown (3x8-12 each). Day 2 - Rest or light walking. Day 3 - Shoulder press, rows, planks (3x8-12 each). Day 4 - Rest. Day 5 - Repeat Day 1. Focus on form and gradually increase weight."
+                    context_sentence = " Here's a simple beginner routine: Day 1 - Leg press, chest press, lat pulldown (1–2 sets of 7–10 reps each). Day 2 - Rest or light walking. Day 3 - Shoulder press, rows, planks (1–2 sets of 7–10 reps each). Day 4 - Rest. Day 5 - Repeat Day 1. Focus on form and gradually increase weight."
                 else:
                     context_sentence = " Consider a push/pull/legs split or upper/lower split. Train 4-5 days per week with 1-2 rest days. Focus on compound movements and progressive overload. Include 1-2 cardio sessions for conditioning."
             else:

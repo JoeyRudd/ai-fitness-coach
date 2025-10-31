@@ -24,18 +24,25 @@
         </div>
 
         <!-- Hero -->
-        <div v-if="showHero" class="w-full bg-white dark:bg-[#0c151b] border-b border-gray-200/70 dark:border-neutral-800">
-            <div class="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
-                <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50">Welcome to Hypertrofit</h1>
-                <p class="mt-2 text-gray-700 dark:text-gray-300 text-sm sm:text-base">Your friendly, beginner-focused fitness and nutrition coach. Simple steps, clear guidance, safety first.</p>
-                <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">Educational only—this is not professional medical advice.</p>
+        <div v-if="showHero" class="w-full bg-white dark:bg-[#0c151b]">
+            <div class="max-w-3xl mx-auto px-4 sm:px-6 py-8 sm:py-12">
+                <div class="rounded-2xl bg-gray-50/60 dark:bg-[#0e1820] p-6 sm:p-8 shadow-sm">
+                    <h1 class="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-gray-50">Your simple fitness and nutrition coach</h1>
+                    <p class="mt-2 text-gray-700 dark:text-gray-300 text-sm sm:text-base">Friendly, beginner-focused guidance. Small steps. Clear habits.</p>
+                    <div class="mt-4 grid grid-cols-1 sm:grid-cols-3 gap-2 sm:gap-3">
+                        <button @click="applyQuickPrompt('What\'s a good workout split for beginners?')" class="text-left text-sm px-3 py-2 rounded-lg bg-white/80 hover:bg-white text-gray-800 dark:bg-[#0b141a] dark:hover:bg-[#0c151b] dark:text-gray-100 transition-colors shadow-sm">What's a good workout split for beginners?</button>
+                        <button @click="applyQuickPrompt('How much protein should I eat?')" class="text-left text-sm px-3 py-2 rounded-lg bg-white/80 hover:bg-white text-gray-800 dark:bg-[#0b141a] dark:hover:bg-[#0c151b] dark:text-gray-100 transition-colors shadow-sm">How much protein should I eat?</button>
+                        <button @click="applyQuickPrompt('What is RIR?')" class="text-left text-sm px-3 py-2 rounded-lg bg-white/80 hover:bg-white text-gray-800 dark:bg-[#0b141a] dark:hover:bg-[#0c151b] dark:text-gray-100 transition-colors shadow-sm">What is RIR?</button>
+                    </div>
+                    <p class="mt-4 text-xs text-gray-500 dark:text-gray-400">For education only. Not medical advice. Consult a healthcare professional for personal guidance.</p>
+                </div>
             </div>
         </div>
 
         <!-- Compact disclaimer banner (shown after first message) -->
-        <div v-else class="w-full bg-amber-50 dark:bg-[#1b1408] text-amber-800 dark:text-amber-300 border-b border-amber-200/70 dark:border-amber-900/40">
+        <div v-else class="w-full bg-amber-50 dark:bg-[#1b1408] text-amber-800 dark:text-amber-300">
             <div class="max-w-3xl mx-auto px-4 sm:px-6 py-2 text-xs sm:text-sm">
-                Educational only—this is not professional medical advice.
+                For education only. Not medical advice. Consult a healthcare professional for personal guidance.
             </div>
         </div>
 
@@ -131,20 +138,25 @@ const addInteraction = (type: string, message: string): void => {
     interactionHistory.value.push({ type, message, timestamp });
 };
 
+// Quick prompt applier: prefill the textarea and focus it; hide hero
+const applyQuickPrompt = (text: string): void => {
+    const input = document.getElementById('user-input') as HTMLTextAreaElement | null;
+    if (input) {
+        input.value = text;
+        input.dispatchEvent(new Event('input', { bubbles: true }));
+        input.focus();
+    }
+    if (showHero.value) showHero.value = false;
+};
+
 // Event handlers for ChatInterface events
 const onMessageSent = (message: string): void => {
-    console.log("Message sent:", message);
     addInteraction("Message Sent", message);
     // Hide hero after first message
     if (showHero.value) showHero.value = false;
 };
 
 const onResponseReceived = (response: string): void => {
-    console.log("Response received:", response);
     addInteraction("Response Received", response);
 };
 </script>
-
-<style>
-/* Using TailwindCSS utilities instead of custom CSS as per guidelines */
-</style>

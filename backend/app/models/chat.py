@@ -10,9 +10,6 @@ class ChatTurn(BaseModel):
     role: Literal['user','assistant']
     content: str = Field(..., min_length=1, description="Message content cannot be empty")
 
-class ChatQuery(BaseModel):
-    history: List[ChatMessage]
-
 # Extended models from original monolith (renamed for clarity)
 class Profile(BaseModel):
     sex: Optional[str]

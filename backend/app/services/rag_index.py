@@ -1,29 +1,26 @@
-"""Lightweight RAG index skeleton.
+"""RAG index implementation with multiple backend support.
 
-This is an intentionally *minimal* placeholder around a future embedding + FAISS
-retrieval pipeline. It is kept pure (no FastAPI / framework deps) so it can be
-unit‑tested easily. For now it only loads raw markdown/text documents and
-`retrieve` returns an empty list until embedding + index construction is
-implemented.
+This module provides a flexible RAG (Retrieval-Augmented Generation) index that
+supports multiple retrieval backends:
+- TF-IDF (primary, lightweight and fast)
+- BM25 (excellent for short queries)
+- Sentence transformers with FAISS (fallback if available)
+- Keyword-based fallback (always available)
 
-Planned architecture (future work):
-
-    RAGIndex.load(path) -> scans directory for .md / .txt files, stores raw docs.
-    RAGIndex.build() -> (TODO) create sentence embeddings with
-        sentence-transformers 'all-MiniLM-L6-v2' (or configurable) and build a
-        FAISS IndexFlatIP (cosine similarity via normalized vectors).
-    RAGIndex.retrieve(query, k=4) -> (TODO) embed query, search FAISS, return top k snippets.
-
-Design notes / TODOs:
-- Add dependency: sentence-transformers (model: all-MiniLM-L6-v2) when implementing build().
-- Add dependency: faiss-cpu (or faiss-gpu if appropriate) for vector index.
-- Consider lightweight fallback (BM25 / simple keyword) if embeddings not available.
-- Provide a small caching layer keyed by doc modification time to avoid rebuilding on every startup.
-- Add truncation / chunking logic (e.g. 512-800 token chunks with overlap) before embedding; store mapping doc_chunk_id -> source metadata.
+The implementation is kept pure (no FastAPI / framework deps) so it can be
+unit‑tested easily.
 
 Current behavior:
-- load() populates self._docs with (path, text) tuples.
-- retrieve() returns [] unless (future) embedding index is built.
+- load() scans directory for .md/.txt files and populates self._docs
+- build() creates chunks, embeds using available backend (TF-IDF, BM25, or sentence-transformers)
+- retrieve() performs semantic/keyword search and returns top k chunks
+- hybrid_retrieve() combines multiple methods using Reciprocal Rank Fusion (RRF)
+
+Features:
+- Automatic chunking with overlap (900 char chunks, 150 char overlap)
+- Multiple embedding backends with graceful fallbacks
+- Hybrid retrieval combining BM25 and TF-IDF for better results
+- Source attribution for retrieved chunks
 """
 from __future__ import annotations
 

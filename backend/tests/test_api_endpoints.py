@@ -80,22 +80,6 @@ class TestAPIEndpoints:
         data = response.json()
         assert data["response"] is not None
     
-    def test_chat_endpoint_legacy_path(self, client: TestClient, mock_generate):
-        """Test the legacy chat2 endpoint still works."""
-        mock_generate("Legacy response")
-        
-        request_data = {
-            "history": [
-                {"role": "user", "content": "Test message"}
-            ]
-        }
-        
-        response = client.post("/api/v1/chat2", json=request_data)
-        assert response.status_code == 200
-        
-        data = response.json()
-        assert "response" in data
-        assert "profile" in data
     
     def test_chat_endpoint_empty_message(self, client: TestClient, mock_generate):
         """Test chat endpoint with empty message (should be rejected)."""

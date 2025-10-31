@@ -52,8 +52,8 @@ For someone new to a structured fitness routine, a great goal is **2 to 3 times 
 **Full body exercises to include:**
 - **Legs:** Leg press, leg extension, seated leg curl
 - **Push:** Chest press, shoulder press, tricep extension
-- **Pull:** Lat pulldown, chest supported row
-- **Core:** Planks, crunches (2-3 sets each)
+- **Pull:** Lat pulldown, chest supported row, bicep curl
+- **Core:** Planks, crunches (1–2 sets of 7–10 reps each)
 
 **Full body workout split benefits:**
 - Maximum efficiency for beginners
@@ -87,7 +87,7 @@ For someone new to a structured fitness routine, a great goal is **2 to 3 times 
 ## Training 2 Times Per Week Per Muscle Group
 
 **Rules for 2x a week frequency:**
-- Each muscle group should be hit for 2-4 sets per session
+- Each muscle group should be hit for 1–2 sets of 7–10 reps per session
 - Example split would be upper/lower 4x per week with 3 rest days
 - Another example split would be anterior/posterior 4x per week with 3 rest days
 - Each Upper/Lower or Anterior/Posterior block should be separated by at least one rest day
@@ -104,7 +104,7 @@ For someone new to a structured fitness routine, a great goal is **2 to 3 times 
 ## Training 3 Times Per Week Per Muscle Group
 
 **Rules for 3x a week frequency:**
-- Each muscle group should be hit for 1-3 sets per session
+- Each muscle group should be hit for 1–3 sets of 7–10 reps per session
 - Example split would be full body 3x per week with 4 rest days
 - Each session should be separated by at least one rest day
 

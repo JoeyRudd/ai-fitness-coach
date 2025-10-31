@@ -1,7 +1,6 @@
 from fastapi import APIRouter, HTTPException, Request
 import logging
 from app.models.chat import (
-    HistoryChatRequest, HistoryChatResponse,
     ChatRequest, ChatResponse, ChatTurn, ChatMessage, Profile
 )
 from app.services.rag_service import rag_service
@@ -13,14 +12,6 @@ router = APIRouter()
 @router.get("/")
 async def api_root() -> dict[str, str]:
     return {"status": "ok", "service": "chat"}
-
-@router.post("/chat2", response_model=HistoryChatResponse)
-async def chat2(req: HistoryChatRequest) -> HistoryChatResponse:  # legacy path
-    try:
-        return rag_service.get_ai_response(req.history)
-    except Exception as e:
-        logger.error(f"Error in chat2 endpoint: {e}")
-        raise HTTPException(status_code=500, detail="Internal server error")
 
 @router.post("/chat", response_model=ChatResponse)
 async def chat(req: ChatRequest, request: Request) -> ChatResponse:

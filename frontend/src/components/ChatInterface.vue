@@ -4,9 +4,7 @@
     <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-2 sm:py-4 pb-32 sm:pb-36 min-h-0">
       <!-- Welcome Message -->
       <div v-if="history.length === 1" class="text-center py-4 sm:py-6">
-        <div class="text-2xl sm:text-4xl font-bold text-gray-800 dark:text-gray-100 mb-3 sm:mb-4">
-          Hypertrofit
-        </div>
+       
         <div class="text-base sm:text-lg text-gray-600 dark:text-gray-400 w-full max-w-4xl mx-auto px-2">
           {{ history[0].content }}
         </div>
@@ -23,7 +21,7 @@
             <div class="flex flex-col items-end">
               <div
                 :class="getMessageBubbleClasses(turn.content)"
-                class="bg-gray-100 dark:bg-[#080e12] text-gray-900 dark:text-gray-100 rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap text-sm sm:text-base transition-all duration-200 ease-out"
+                class="bg-blue-600 text-white dark:bg-blue-600 dark:text-white rounded-3xl px-3 py-2.5 sm:px-4 sm:py-3 whitespace-pre-wrap text-sm sm:text-base transition-all duration-200 ease-out shadow-sm"
               >
                 {{ turn.content }}
               </div>
@@ -74,15 +72,15 @@
         <!-- Loading indicator -->
         <div v-if="loading" class="flex w-full">
           <div class="mr-auto flex justify-start">
-            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl flex items-center space-x-2 text-sm sm:text-base max-w-[280px] sm:max-w-[320px]">
-              <div class="flex items-center space-x-1">
-                <span class="text-gray-500 dark:text-gray-400 mr-2">AI is typing</span>
-                <div class="flex space-x-1">
-                  <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce"></span>
-                  <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay:0.1s"></span>
-                  <span class="w-2 h-2 bg-gray-400 dark:bg-gray-500 rounded-full animate-bounce" style="animation-delay:0.2s"></span>
-                </div>
-              </div>
+            <div class="bg-gray-100 dark:bg-neutral-800 text-gray-600 dark:text-gray-300 px-3 py-2.5 sm:px-4 sm:py-3 rounded-3xl text-sm sm:text-base max-w-[280px] sm:max-w-[320px]">
+              <span class="inline-flex items-center gap-2">
+                <span class="text-gray-500 dark:text-gray-400">Typing</span>
+                <span class="inline-flex gap-1">
+                  <span class="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style="animation-delay:0s"></span>
+                  <span class="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style="animation-delay:0.15s"></span>
+                  <span class="w-1.5 h-1.5 bg-gray-400 dark:bg-gray-500 rounded-full animate-pulse" style="animation-delay:0.3s"></span>
+                </span>
+              </span>
             </div>
           </div>
         </div>
@@ -90,7 +88,7 @@
 
       <!-- TDEE Panel -->
       <div v-if="tdeeData" class="mt-4 sm:mt-6 w-full px-2">
-        <div class="p-3 sm:p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 border border-blue-200/60 dark:border-blue-800/40 text-xs sm:text-sm text-blue-900 dark:text-blue-200 max-w-4xl mx-auto">
+        <div class="p-3 sm:p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 text-xs sm:text-sm text-blue-900 dark:text-blue-200 max-w-4xl mx-auto shadow-sm">
           <div class="font-semibold mb-2">Caloric Estimates</div>
           <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4">
             <div>BMR: <span class="font-medium">{{ tdeeData.bmr.toFixed(0) }}</span></div>
@@ -100,37 +98,30 @@
         </div>
       </div>
 
-      <!-- Profile Chips & Missing Info Notices -->
-      <div v-if="showProfileBar" class="mt-4 sm:mt-6 w-full px-2 mb-4">
-        <div class="max-w-4xl mx-auto">
-          <div class="flex flex-wrap gap-1.5 sm:gap-2 mb-2">
-            <span v-if="profile.sex" class="chip text-xs">Sex: {{ profile.sex }}</span>
-            <span v-if="profile.age !== null" class="chip text-xs">Age: {{ profile.age }}</span>
-            <span v-if="profile.weight_kg !== null" :class="weightChipClass + ' text-xs'">Weight: {{ formattedWeight }}</span>
-            <span v-if="profile.height_cm !== null" :class="heightChipClass + ' text-xs'">Height: {{ formattedHeight }}</span>
-            <span v-if="profile.activity_factor !== null" :class="activityChipClass + ' text-xs'">Activity: {{ activityName }}</span>
-          </div>
-          <div v-if="tdeeIntentNeedsFields" class="text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 rounded-lg">
-            Need: {{ missing.join(', ') }}
-          </div>
-          <div v-else-if="gentleReminder" class="text-xs text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-neutral-900/50 px-3 py-2 rounded-lg">
-            Provide remaining info anytime for numbers.
-          </div>
-        </div>
-      </div>
+      
     </div>
 
     <!-- Input Section - Absolutely positioned at bottom -->
-    <div class="absolute bottom-0 left-0 right-0 bg-gray-100 dark:bg-[#080e12] border-t border-gray-200 dark:border-neutral-700">
+    <div class="absolute bottom-0 left-0 right-0 bg-gray-100 dark:bg-[#080e12]">
       <div class="w-full px-3 sm:px-6 py-3 sm:py-4">
         <div class="relative max-w-4xl mx-auto">
+          <!-- Inline error toast -->
+          <div v-if="errorMessage" class="absolute -top-10 right-0 left-0 mx-auto w-full sm:w-auto sm:max-w-md">
+            <div class="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/30 dark:text-red-200 dark:border-red-800">
+              <span class="text-xs sm:text-sm">{{ errorMessage }}</span>
+              <div class="flex items-center gap-2">
+                <button @click="() => { userInput = lastMessageContent; errorMessage = ''; sendMessage(); }" class="text-xs font-medium underline hover:opacity-80">Retry</button>
+                <button @click="() => { errorMessage = ''; }" class="text-xs text-red-700 dark:text-red-300 hover:opacity-80">Dismiss</button>
+              </div>
+            </div>
+          </div>
           <textarea
             id="user-input"
             v-model="userInput"
             :placeholder="placeholder"
             :rows="textareaRows"
             :maxlength="maxLength"
-            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 pr-14 border border-gray-300 dark:border-neutral-600 rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 resize-none transition-all duration-200 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
+            class="w-full px-3 py-2.5 sm:px-4 sm:py-3 pr-14 border border-transparent dark:border-transparent rounded-xl shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500/60 focus:border-blue-500/60 hover:bg-gray-50 dark:hover:bg-neutral-800/90 resize-none transition-all duration-200 placeholder-gray-400 dark:placeholder-gray-500 bg-white dark:bg-neutral-800 text-gray-900 dark:text-gray-100 text-sm sm:text-base"
             :disabled="loading"
             @keydown.enter.prevent="handleEnter"
             @keydown.ctrl.enter.prevent="sendMessage"
@@ -141,7 +132,7 @@
           <button
             @click="sendMessage"
             :disabled="loading || !userInput.trim() || (!!maxLength && userInput.length > maxLength)"
-            class="absolute bottom-3 sm:bottom-3.5 right-1.5 sm:right-2 w-9 h-9 sm:w-10 sm:h-10 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white rounded-full flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 shadow-sm hover:shadow-md z-10"
+            class="absolute bottom-3 sm:bottom-3.5 right-1.5 sm:right-2 w-9 h-9 sm:w-10 sm:h-10 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 dark:disabled:bg-gray-600 text-white rounded-full flex items-center justify-center focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 focus:ring-offset-white dark:focus:ring-offset-neutral-800 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-150 shadow-sm hover:shadow-md z-10"
           >
             <span v-if="!loading">
               <svg class="w-4 h-4 sm:w-5 sm:h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -155,6 +146,9 @@
               </svg>
             </span>
           </button>
+        </div>
+        <div class="max-w-4xl mx-auto">
+          <div v-if="history.length === 1" class="mt-1 pl-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">Press Enter to send • Shift+Enter for a new line</div>
         </div>
       </div>
     </div>
@@ -193,28 +187,28 @@ interface Props {
 const props = defineProps<Props>();
 
 // Local fallbacks (non-reactive to external prop changes, sufficient here)
-const placeholder = props.placeholder ?? 'e.g., Create a workout plan for beginners, or suggest a healthy meal...';
+const placeholder = props.placeholder ?? 'e.g., What\'s a good workout split for beginners?';
 const textareaRows = props.textareaRows ?? 3;
 const maxLength = props.maxLength ?? 1000;
 
 function resolveEndpoint(): string {
   // For development, use the proxy configuration
   if (import.meta.env.DEV) {
-    console.log('[ChatInterface] Development mode - using proxy configuration');
     return '/api/v1/chat';
   }
 
-  // For production, use Railway URL directly
-  return 'https://outstanding-caring-production.up.railway.app/api/v1/chat';
+  // For production, use environment variable or fallback to Railway URL
+  const apiUrl = import.meta.env.VITE_API_URL || 'https://outstanding-caring-production.up.railway.app/api/v1/chat';
+  return apiUrl;
 }
-
-console.debug('[ChatInterface] Using API endpoint:', resolveEndpoint());
 
 // Emits
 const emit = defineEmits<{ messageSent: [message: string]; responseReceived: [response: string] }>();
 
 // Reactive State
 const userInput = ref('');
+const lastMessageContent = ref<string>('');
+const errorMessage = ref<string>('');
 const loading = ref(false);
 const history = ref<HistoryTurn[]>([
   { role: 'assistant', content: 'Hey! How can I help you with your fitness today?' }
@@ -226,8 +220,6 @@ const missing = ref<string[]>([]);
 const askedThisIntent = ref<string[]>([]);
 
 // Derived
-const hasAnyProfile = computed(() => Object.values(profile.value).some(v => v !== null));
-const showProfileBar = computed(() => hasAnyProfile.value || (intent.value === 'tdee' && missing.value.length > 0));
 const activityName = computed(() => {
   if (profile.value.activity_factor == null) return '';
   const af = profile.value.activity_factor;
@@ -237,28 +229,9 @@ const activityName = computed(() => {
   if (af < 1.9) return 'Active';
   return 'Very Active';
 });
-const formattedWeight = computed(() => {
-  if (profile.value.weight_kg == null) return '';
-  const lbs = profile.value.weight_kg * 2.20462;
-  return `${profile.value.weight_kg.toFixed(1)} kg (${lbs.toFixed(1)} lb)`;
-});
-const formattedHeight = computed(() => {
-  if (profile.value.height_cm == null) return '';
-  const totalInches = profile.value.height_cm / 2.54;
-  const feet = Math.floor(totalInches / 12);
-  const inches = Math.round(totalInches - feet * 12);
-  return `${profile.value.height_cm.toFixed(0)} cm (${feet}'${inches}\")`;
-});
-const tdeeIntentNeedsFields = computed(() => intent.value === 'tdee' && missing.value.length > 0 && askedThisIntent.value.length > 0);
-const gentleReminder = computed(() => intent.value === 'tdee' && missing.value.length > 0 && askedThisIntent.value.length === 0);
+// (Profile chip UI removed)
 
-// Highlight chip classes when requested & missing
-function chipBase(extra='') { return `chip ${extra}`; }
-const requestedMissingSet = computed(() => new Set(missing.value));
-const highlightIfMissing = (field: string) => tdeeIntentNeedsFields.value && requestedMissingSet.value.has(field) ? 'ring-2 ring-amber-500/70' : '';
-const weightChipClass = computed(() => chipBase(highlightIfMissing('weight')));
-const heightChipClass = computed(() => chipBase(highlightIfMissing('height')));
-const activityChipClass = computed(() => chipBase(highlightIfMissing('activity')));
+// (Chip highlighting logic removed with UI)
 
 // Auto-scroll when history changes
 async function scrollToBottom() {
@@ -314,6 +287,8 @@ async function sendMessage() {
   history.value.push(userMessage);
   emit('messageSent', content);
   userInput.value = '';
+  lastMessageContent.value = content;
+  errorMessage.value = '';
   await scrollToBottom();
   
   // Update status to 'sent' immediately
@@ -325,7 +300,6 @@ async function sendMessage() {
   maybeSummarizeHistory();
 
   const endpoint = resolveEndpoint();
-  console.log(`[ChatInterface] Attempting to POST to: ${endpoint}`); // New log
 
   try {
     const isNewChatEndpoint = /\/chat\/?$/.test(endpoint);
@@ -375,9 +349,7 @@ async function sendMessage() {
     
     // Update user message status to 'error'
     userMessage.status = 'error';
-    
-    history.value.push({ role: 'assistant', content: 'Sorry, there was an error processing that. Please try again.', timestamp: new Date() });
-    await scrollToBottom(); // Scroll after error message
+    errorMessage.value = 'Something went wrong. Please try again.';
   } finally {
     loading.value = false;
     scrollToBottom();
