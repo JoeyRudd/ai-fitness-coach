@@ -31,6 +31,8 @@ class Settings(BaseSettings):
         # Allow either project root .env or backend/.env (first found wins)
         env_file = (".env", "backend/.env")
         case_sensitive = False
+        # Ignore any extra env vars (e.g., legacy GEMINI_* still present)
+        extra = "ignore"
 
     @property
     def allowed_origins_list(self) -> List[str]:  # derived helper for CORS
