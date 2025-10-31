@@ -373,6 +373,8 @@ class RAGService:
         # Strip cliché safety lines unless the user asked about safety/pain
         if intent == 'general':
             model_reply = self._sanitize_cliches(last_user, model_reply)
+        # Remove any references to context/KB/sources for a natural tone
+        model_reply = self._strip_context_references(model_reply)
         return HistoryChatResponse(response=model_reply, profile=profile, tdee=None, missing=missing, asked_this_intent=[], intent=intent)
 
     # ================== Internal Helpers ==================
@@ -1069,7 +1071,7 @@ class RAGService:
                     break
             if found:
                 items = ", ".join(found[:6])
-                context_sentence = f" From my knowledge base, great beginner-friendly picks include: {items}."
+                context_sentence = f" Great beginner-friendly picks include: {items}."
             elif is_workout_split_query:
                 # Provide specific workout split guidance even without specific exercises
                 context_sentence = " For beginners, start with a full body split 3x per week (Mon/Wed/Fri) with rest days between. This hits all major muscle groups efficiently and allows proper recovery."
@@ -1080,7 +1082,7 @@ class RAGService:
             m = re.split(r'[.!?]', first)
             if m and m[0]:
                 snippet = m[0][:160].strip()
-                context_sentence = f" Here's a quick note from my files: {snippet}."
+                context_sentence = f" Quick note: {snippet}."
         
         # Provide specific guidance based on the user's question
         if not context_sentence:
@@ -1139,7 +1141,7 @@ class RAGService:
                 para = para[:320].rstrip()
                 if not para.endswith("."):
                     para += "..."
-            return para
+            return self._strip_context_references(para)
 
     def _sanitize_cliches(self, user_message: str, reply: str) -> str:
         """Remove cliché safety phrases unless the user asked about safety/pain/injury.
@@ -1157,6 +1159,34 @@ class RAGService:
             if not sent:
                 continue
             if any(p.search(sent) for p in CLICHE_PATTERNS):
+                continue
+            rebuilt.append(sent + punct)
+        cleaned = " ".join(s.strip() for s in rebuilt).strip()
+        return cleaned or reply
+
+    def _strip_context_references(self, reply: str) -> str:
+        """Remove sentences that reference internal context/KB/sources for a natural tone."""
+        if not reply:
+            return reply
+        keywords = [
+            r"\bcontext\b",
+            r"knowledge base",
+            r"\bkb\b",
+            r"sources?",
+            r"citations?",
+            r"from my files",
+            r"from the files",
+            r"documents?",
+            r"retrieved",
+        ]
+        parts = re.split(r"([.!?])", reply)
+        rebuilt: list[str] = []
+        for i in range(0, len(parts), 2):
+            sent = parts[i].strip()
+            punct = parts[i+1] if i+1 < len(parts) else ''
+            if not sent:
+                continue
+            if any(re.search(k, sent, re.I) for k in keywords):
                 continue
             rebuilt.append(sent + punct)
         cleaned = " ".join(s.strip() for s in rebuilt).strip()
