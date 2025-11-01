@@ -222,9 +222,7 @@ graph TD
     A[FastAPI Server] --> B[Chat Endpoint]
     B --> C[RAG Service]
     C --> D[TF-IDF Retrieval]
-    C --> F[Sentence Transformers]
     D --> G[Markdown Knowledge Base]
-    F --> G
     C --> H[OpenRouter LLM]
     C --> I[Profile Logic]
     C --> J[TDEE Calculator]
@@ -305,7 +303,6 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 | OPENROUTER_MODEL | backend | deepseek/deepseek-chat | OpenRouter model slug. |
 | ALLOWED_ORIGINS | backend | http://localhost:5173 | Comma-separated list for CORS (frontend dev origin). |
 | KNOWLEDGE_BASE_PATH | backend | knowledge_base | Override location of markdown knowledge base. |
-| EMBEDDING_MODEL_NAME | backend | all-MiniLM-L6-v2 | Sentence transformer model used for embeddings. |
 | MAX_RETRIEVAL_CHUNKS | backend | 3 | How many context chunks to inject into prompt. |
 
 ## Architecture Overview
@@ -314,7 +311,7 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 - **Models:** Pydantic data models in `models/chat.py` standardize message, profile, and response payloads.
 - **Services Layer:**
   - `rag_service.RAGService`: Intent detection (TDEE vs general), profile extraction, recall, TDEE calculation, RAG grounding, LLM call / fallback, **workout split detection and fallback responses**.
-  - `rag_index.RAGIndex`: Loads markdown, chunks, and uses **TF-IDF** for semantic similarity search. Falls back to sentence-transformers (MiniLM) with NumPy/FAISS if TF-IDF unavailable.
+  - `rag_index.RAGIndex`: Loads markdown, chunks, and uses **TF-IDF** for semantic similarity search.
   - `profile_logic.py`: Fact extraction & calculations.
   - `openrouter_client.py`: OpenRouter client using OpenAI-compatible chat completions.
 - **Knowledge Base:** Local markdown sources in `knowledge_base/` ground general fitness answers with **comprehensive workout split information**.
@@ -323,15 +320,14 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 ## RAG Retrieval Flow
 1. Load markdown docs from `knowledge_base/` (recursive).
 2. Chunk into ~900 char windows with overlap.
-3. **Primary: TF-IDF indexing** for semantic similarity search.
-4. **Fallback:** Sentence transformers (MiniLM) with normalization if TF-IDF unavailable.
-5. Store chunk vectors in memory (no external DB).
-6. On user query (non-TDEE):
+3. **TF-IDF indexing** for semantic similarity search.
+4. Store chunk vectors in memory (no external DB).
+5. On user query (non-TDEE):
    - **TF-IDF retrieval** finds semantically similar chunks
    - **Query augmentation** adds conversation context for ambiguous queries
    - **Workout split detection** with specialized fallback responses
-7. Inject context block into prompt with anti-hallucination guidance.
-8. **Enhanced fallback:** Deterministic supportive responses with specific workout split schedules and exercise recommendations.
+6. Inject context block into prompt with anti-hallucination guidance.
+7. **Enhanced fallback:** Deterministic supportive responses with specific workout split schedules and exercise recommendations.
 
 ## New Features
 

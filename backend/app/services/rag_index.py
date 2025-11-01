@@ -31,7 +31,7 @@ from typing import List, Optional, Dict, Any
 try:
     from app.core.model_config import MODEL_CONFIG
 except ImportError:
-    MODEL_CONFIG = {"sentence_transformer_model": "all-MiniLM-L6-v2"}
+    MODEL_CONFIG = {}
 
 logger = logging.getLogger(__name__)
 
@@ -42,10 +42,7 @@ except Exception:  # noqa: BLE001
     TfidfVectorizer = None  # type: ignore
     cosine_similarity = None  # type: ignore
 
-try:  # sentence transformers (fallback if available)
-    from sentence_transformers import SentenceTransformer  # type: ignore
-except Exception:  # noqa: BLE001
-    SentenceTransformer = None  # type: ignore
+# sentence-transformers removed - using TF-IDF only
 
 # faiss now optional; if missing we use pure numpy cosine similarity
 try:  # pragma: no cover
@@ -251,31 +248,7 @@ class RAGIndex:
                 logger.info("RAG index built with TF-IDF: %d chunks", len(self._chunks))
                 return
             
-            # Fallback to sentence transformers if available
-            if SentenceTransformer is not None and np is not None:
-                model_name = model_name or MODEL_CONFIG.get("sentence_transformer_model", "all-MiniLM-L6-v2") if MODEL_CONFIG else "all-MiniLM-L6-v2"
-                self._model_name = model_name
-                self._model = SentenceTransformer(model_name)
-                emb = self._model.encode(texts, normalize_embeddings=True, show_progress_bar=False).astype("float32")
-                self._embeddings = emb
-                
-                if faiss is not None:
-                    try:
-                        dim = emb.shape[1]
-                        index = faiss.IndexFlatIP(dim)
-                        index.add(emb)
-                        self._index = index
-                    except Exception as e:  # noqa: BLE001
-                        logger.warning("FAISS index creation failed; falling back to pure NumPy: %s", e)
-                        self._index = None
-                
-                self._ready = True
-                self._built = True
-                self._last_build = time()
-                logger.info("RAG index built with sentence transformers: %d chunks", len(self._chunks))
-                return
-            
-            logger.warning("No suitable RAG backend available (missing sklearn or sentence-transformers)")
+            logger.warning("No suitable RAG backend available (missing sklearn)")
             
         except Exception as e:  # noqa: BLE001
             logger.warning("RAGIndex build failed: %s", e)
@@ -314,22 +287,6 @@ class RAGIndex:
                     return []
                 topk = min(k, len(scores))
                 indices = np.argsort(scores)[-topk:][::-1]  # descending order
-                
-            # Sentence transformer approach
-            elif hasattr(self._model, 'encode'):  # SentenceTransformer
-                if np is None:
-                    return []
-                q_emb = self._model.encode([query], normalize_embeddings=True).astype("float32")
-                if self._index is not None:  # faiss path
-                    D, I = self._index.search(q_emb, k)  # type: ignore
-                    indices = [int(i) for i in I[0] if i >= 0]
-                else:  # pure numpy cosine similarity
-                    scores = (self._embeddings @ q_emb[0]).astype("float32")
-                    if scores.size == 0:
-                        return []
-                    topk = min(k, scores.shape[0])
-                    indices = np.argpartition(-scores, topk - 1)[:topk]
-                    indices = indices[np.argsort(-scores[indices])].tolist()
             else:
                 return []
             
@@ -343,7 +300,7 @@ class RAGIndex:
                 source = Path(chunk.doc_path).name
                 results.append({"text": chunk.text, "source": source})
             
-            backend_type = "tfidf" if hasattr(self._model, 'transform') else ("faiss" if self._index else "numpy")
+            backend_type = "tfidf"
             logger.info("RAG retrieval k=%d hits=%s backend=%s", k, [r['source'] for r in results], backend_type)
             return results
             

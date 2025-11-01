@@ -28,7 +28,7 @@ class TestAPIEndpoints:
         assert isinstance(data["message"], str)
         assert isinstance(data["rag_status"], str)
         assert data["rag_status"] in ["ready", "not ready"]
-        assert data["rag_backend"] in ["tfidf", "sentence-transformer", "none"]
+        assert data["rag_backend"] in ["tfidf", "none"]
     
     def test_chat_api_root(self, client: TestClient):
         """Test the chat API root endpoint."""

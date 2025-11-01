@@ -32,8 +32,8 @@ async def root() -> dict[str, str]:
         chunk_count = len(rag_service._rag_index._chunks)
         if hasattr(rag_service._rag_index._model, 'transform'):
             rag_backend = "tfidf"
-        elif hasattr(rag_service._rag_index._model, 'encode'):
-            rag_backend = "sentence-transformer"
+        else:
+            rag_backend = "none"
 
     return {
         "message": "AI Fitness Coach running",

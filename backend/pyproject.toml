@@ -11,15 +11,11 @@ requires-python = ">=3.9"
 dependencies = [
     "fastapi>=0.100.0",
     "uvicorn[standard]>=0.25.0",
-    "transformers>=4.40.0",
-    "sentence-transformers==2.7.0",
-    # faiss-cpu removed; using pure NumPy similarity fallback
-    "torch>=2.0.0",
-    "accelerate>=0.20.0",
     "pydantic>=2.5.0",
     "python-multipart>=0.0.10",
     "pydantic-settings>=2.0.0",
     "httpx>=0.27.0",
+    "scikit-learn>=1.0.0",  # For TF-IDF vectorization
 ]
 
 [project.optional-dependencies]
