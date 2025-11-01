@@ -354,7 +354,7 @@ class RAGService:
                     if context_keywords:
                         rag_query = f"{last_user} {context_keywords}"
                         logger.info("Augmented RAG query with context: '%s' -> '%s'", last_user, rag_query)
-                # Use hybrid RRF retrieval for better results
+                # Retrieve relevant chunks using TF-IDF semantic search
                 retrieved = self._rag_index.hybrid_retrieve(rag_query, k=dyn_k)  # type: ignore
                 logger.info("RAG retrieval successful: %d results for query '%s'", len(retrieved), rag_query)
                 for i, r in enumerate(retrieved):

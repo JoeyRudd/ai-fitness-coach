@@ -1,26 +1,22 @@
-"""RAG index implementation with multiple backend support.
+"""RAG index implementation with TF-IDF semantic search.
 
-This module provides a flexible RAG (Retrieval-Augmented Generation) index that
-supports multiple retrieval backends:
-- TF-IDF (primary, lightweight and fast)
-- BM25 (excellent for short queries)
-- Sentence transformers with FAISS (fallback if available)
-- Keyword-based fallback (always available)
+This module provides a lightweight RAG (Retrieval-Augmented Generation) index that
+uses TF-IDF for semantic similarity search over the knowledge base.
 
 The implementation is kept pure (no FastAPI / framework deps) so it can be
 unit‑tested easily.
 
 Current behavior:
 - load() scans directory for .md/.txt files and populates self._docs
-- build() creates chunks, embeds using available backend (TF-IDF, BM25, or sentence-transformers)
-- retrieve() performs semantic/keyword search and returns top k chunks
-- hybrid_retrieve() combines multiple methods using Reciprocal Rank Fusion (RRF)
+- build() creates chunks and builds TF-IDF index
+- retrieve() performs semantic search using TF-IDF and returns top k chunks
+- hybrid_retrieve() uses TF-IDF (maintains same interface for backwards compatibility)
 
 Features:
 - Automatic chunking with overlap (900 char chunks, 150 char overlap)
-- Multiple embedding backends with graceful fallbacks
-- Hybrid retrieval combining BM25 and TF-IDF for better results
+- TF-IDF vectorization for fast semantic search
 - Source attribution for retrieved chunks
+- Fallback to keyword-based search if TF-IDF unavailable
 """
 from __future__ import annotations
 
@@ -62,11 +58,7 @@ try:
 except ImportError:
     np = None  # type: ignore
 
-try:  # BM25 for better short query handling
-    from rank_bm25 import BM25Okapi
-    BM25_AVAILABLE = True
-except Exception:  # noqa: BLE001
-    BM25_AVAILABLE = False  # type: ignore
+# BM25 removed - using TF-IDF only
 
 # --------------------------- Data Classes ---------------------------
 @dataclass
@@ -108,13 +100,9 @@ class RAGIndex:
 
     Public methods:
         load(path): read .md/.txt recursively
-        build(model_name): chunk + embed + build FAISS (lazy)
-        retrieve(query, k): semantic search returning list[dict]
-            - Uses single method (TF-IDF, BM25, or sentence-transformers)
-            - Primarily used in tests; production code uses hybrid_retrieve()
-        hybrid_retrieve(query, k): hybrid retrieval using RRF
-            - Combines BM25 + TF-IDF using Reciprocal Rank Fusion
-            - Recommended for production use for better query handling
+        build(model_name): chunk + build TF-IDF index (lazy)
+        retrieve(query, k): semantic search using TF-IDF returning list[dict]
+        hybrid_retrieve(query, k): same as retrieve() (maintains backwards compatibility)
     """
 
     def __init__(self) -> None:
@@ -263,22 +251,6 @@ class RAGIndex:
                 logger.info("RAG index built with TF-IDF: %d chunks", len(self._chunks))
                 return
             
-            # Try BM25 if available (excellent for short queries)
-            if BM25_AVAILABLE:
-                try:
-                    # Tokenize texts for BM25
-                    tokenized_texts = [text.lower().split() for text in texts]
-                    self._bm25_index = BM25Okapi(tokenized_texts)
-                    self._model = "bm25"  # Mark as BM25 model
-                    self._ready = True
-                    self._built = True
-                    self._last_build = time()
-                    logger.info("RAG index built with BM25: %d chunks", len(self._chunks))
-                    return
-                except Exception as e:  # noqa: BLE001
-                    logger.warning("BM25 index creation failed: %s", e)
-                    # Continue to sentence transformers fallback
-            
             # Fallback to sentence transformers if available
             if SentenceTransformer is not None and np is not None:
                 model_name = model_name or MODEL_CONFIG.get("sentence_transformer_model", "all-MiniLM-L6-v2") if MODEL_CONFIG else "all-MiniLM-L6-v2"
@@ -343,18 +315,6 @@ class RAGIndex:
                 topk = min(k, len(scores))
                 indices = np.argsort(scores)[-topk:][::-1]  # descending order
                 
-            # BM25 approach
-            elif self._model == "bm25" and hasattr(self, '_bm25_index'):
-                try:
-                    scores = self._bm25_index.get_scores(query.lower().split())
-                    if len(scores) == 0:
-                        return []
-                    topk = min(k, len(scores))
-                    indices = np.argsort(-scores)[:topk]  # descending order
-                except Exception as e:  # noqa: BLE001
-                    logger.warning("BM25 retrieval failed: %s", e)
-                    return []
-                
             # Sentence transformer approach
             elif hasattr(self._model, 'encode'):  # SentenceTransformer
                 if np is None:
@@ -383,7 +343,7 @@ class RAGIndex:
                 source = Path(chunk.doc_path).name
                 results.append({"text": chunk.text, "source": source})
             
-            backend_type = "bm25" if self._model == "bm25" else ("tfidf" if hasattr(self._model, 'transform') else ("faiss" if self._index else "numpy"))
+            backend_type = "tfidf" if hasattr(self._model, 'transform') else ("faiss" if self._index else "numpy")
             logger.info("RAG retrieval k=%d hits=%s backend=%s", k, [r['source'] for r in results], backend_type)
             return results
             
@@ -392,55 +352,13 @@ class RAGIndex:
             return []
 
     def hybrid_retrieve(self, query: str, k: int = 3) -> List[Dict[str, str]]:
-        """Minimal RRF hybrid retrieval combining BM25 and TF-IDF."""
-        if not query or not query.strip():
-            return []
+        """Retrieve using TF-IDF semantic search.
         
-        # Get candidates from both methods
-        candidates = {}
-        
-        # Try BM25 first
-        if hasattr(self, '_bm25_index') and self._model == "bm25":
-            try:
-                bm25_scores = self._bm25_index.get_scores(query.lower().split())
-                for i, score in enumerate(bm25_scores):
-                    if score > 0:
-                        candidates[i] = candidates.get(i, 0) + 1 / (60 + score)
-            except Exception as e:  # noqa: BLE001
-                logger.warning("BM25 scoring failed: %s", e)
-        
-        # Try TF-IDF if available
-        if hasattr(self, '_model') and hasattr(self._model, 'transform') and self._embeddings is not None:
-            try:
-                q_vec = self._model.transform([query])
-                tfidf_scores = cosine_similarity(q_vec, self._embeddings).flatten()
-                for i, score in enumerate(tfidf_scores):
-                    if score > 0:
-                        candidates[i] = candidates.get(i, 0) + 1 / (60 + score)
-            except Exception as e:  # noqa: BLE001
-                logger.warning("TF-IDF scoring failed: %s", e)
-        
-        # Fallback to keyword if no candidates
-        if not candidates:
-            return self._keyword_fallback(query, k)
-        
-        # Sort by combined score and return top k
-        sorted_candidates = sorted(candidates.items(), key=lambda x: x[1], reverse=True)
-        results = []
-        seen = set()
-        
-        for idx, _ in sorted_candidates[:k * 2]:  # Get more candidates initially
-            if idx in seen or idx >= len(self._chunks):
-                continue
-            seen.add(idx)
-            chunk = self._chunks[idx]
-            source = Path(chunk.doc_path).name
-            results.append({"text": chunk.text, "source": source})
-            if len(results) >= k:
-                break
-        
-        logger.info("Hybrid RRF retrieval k=%d hits=%s", k, [r['source'] for r in results])
-        return results
+        Note: This method maintains the same interface as before but now uses
+        TF-IDF only. The name 'hybrid_retrieve' is kept for backwards compatibility.
+        """
+        # Simply use the regular retrieve method (TF-IDF)
+        return self.retrieve(query, k)
 
     def _keyword_fallback(self, query: str, k: int) -> List[Dict[str, str]]:
         q_terms = [t for t in re.findall(r"\w+", query.lower()) if len(t) > 2]

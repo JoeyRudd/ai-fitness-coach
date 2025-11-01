@@ -21,7 +21,6 @@ A simple, user-friendly AI-powered fitness and nutrition coach application desig
 - Safety-first approach with doctor consultation recommendations
 - Responsive design with TailwindCSS
 - **NEW: Enhanced workout split guidance** - Specific schedules and exercise recommendations
-- **NEW: BM25 retrieval support** - Better handling of short queries and workout-related questions
 - **🎯 PWA Features**: Install as mobile app, offline access, and native app-like experience
 
 ## Progressive Web App (PWA)
@@ -68,7 +67,7 @@ Hypertrofit now supports Progressive Web App functionality, allowing users to in
 |-----------|------------|---------|
 | Framework | FastAPI | High-performance async API framework |
 | AI Model | OpenRouter (DeepSeek) | LLM for generating responses |
-| RAG System | BM25 + TF-IDF | Intelligent knowledge retrieval |
+| RAG System | TF-IDF | Intelligent knowledge retrieval |
 | Data Models | Pydantic | Type-safe request/response validation |
 | Deployment | Railway + Docker | Cloud hosting with containerization |
 
@@ -222,11 +221,9 @@ graph TB
 graph TD
     A[FastAPI Server] --> B[Chat Endpoint]
     B --> C[RAG Service]
-    C --> D[BM25 Retrieval]
-    C --> E[TF-IDF Retrieval]
+    C --> D[TF-IDF Retrieval]
     C --> F[Sentence Transformers]
     D --> G[Markdown Knowledge Base]
-    E --> G
     F --> G
     C --> H[OpenRouter LLM]
     C --> I[Profile Logic]
@@ -317,7 +314,7 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 - **Models:** Pydantic data models in `models/chat.py` standardize message, profile, and response payloads.
 - **Services Layer:**
   - `rag_service.RAGService`: Intent detection (TDEE vs general), profile extraction, recall, TDEE calculation, RAG grounding, LLM call / fallback, **workout split detection and fallback responses**.
-  - `rag_index.RAGIndex`: Loads markdown, chunks, and uses **BM25 as primary retrieval method** for better short query handling. Falls back to TF-IDF (scikit-learn) or sentence-transformers (MiniLM) with NumPy/FAISS for similarity.
+  - `rag_index.RAGIndex`: Loads markdown, chunks, and uses **TF-IDF** for semantic similarity search. Falls back to sentence-transformers (MiniLM) with NumPy/FAISS if TF-IDF unavailable.
   - `profile_logic.py`: Fact extraction & calculations.
   - `openrouter_client.py`: OpenRouter client using OpenAI-compatible chat completions.
 - **Knowledge Base:** Local markdown sources in `knowledge_base/` ground general fitness answers with **comprehensive workout split information**.
@@ -325,17 +322,16 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 
 ## RAG Retrieval Flow
 1. Load markdown docs from `knowledge_base/` (recursive).
-2. Chunk into ~800 char windows with overlap.
-3. **Primary: BM25 indexing** for optimal short query and workout question handling.
-4. **Fallback 1:** TF-IDF (scikit-learn) for chunk embedding and retrieval.
-5. **Fallback 2:** Sentence transformers (MiniLM) with normalization.
-6. Store chunk vectors in memory (no external DB).
-7. On user query (non-TDEE):
-   - **BM25 retrieval** for workout split questions and short queries
-   - **Hybrid retrieval** combining multiple methods for optimal results
+2. Chunk into ~900 char windows with overlap.
+3. **Primary: TF-IDF indexing** for semantic similarity search.
+4. **Fallback:** Sentence transformers (MiniLM) with normalization if TF-IDF unavailable.
+5. Store chunk vectors in memory (no external DB).
+6. On user query (non-TDEE):
+   - **TF-IDF retrieval** finds semantically similar chunks
+   - **Query augmentation** adds conversation context for ambiguous queries
    - **Workout split detection** with specialized fallback responses
-8. Inject context block into prompt with anti-hallucination guidance.
-9. **Enhanced fallback:** Deterministic supportive responses with specific workout split schedules and exercise recommendations.
+7. Inject context block into prompt with anti-hallucination guidance.
+8. **Enhanced fallback:** Deterministic supportive responses with specific workout split schedules and exercise recommendations.
 
 ## New Features
 
@@ -346,11 +342,6 @@ Designed specifically for beginners (like a 45-year-old starting their fitness j
 - **Specific Exercise Recommendations**: leg press, chest press, lat pulldown, shoulder press
 - **Progression Paths**: Clear guidance on when to advance to more complex splits
 
-### BM25 Retrieval System
-- **Better Short Query Handling**: Improved retrieval for workout-related questions
-- **Hybrid Search**: Combines BM25 with traditional methods for optimal results
-- **Workout Split Detection**: Automatically identifies and responds to workout split questions
-- **Intelligent Fallbacks**: Provides helpful guidance even when RAG retrieval doesn't find optimal content
 
 ## Local Development
 
@@ -380,7 +371,7 @@ The test suite includes comprehensive coverage of:
 - **Profile Logic** (4 tests) - User profile extraction and TDEE calculations
 - **Intent Detection** (6 tests) - Workout vs nutrition intent classification
 - **TDEE Calculations** (5 tests) - Caloric estimation accuracy
-- **Short Queries** (3 tests) - BM25 retrieval for brief questions
+- **Short Queries** (3 tests) - TF-IDF retrieval for brief questions
 
 All tests pass with comprehensive backend coverage.
 
@@ -390,7 +381,6 @@ All tests pass with comprehensive backend coverage.
 - **Service Worker & Caching**: Implemented offline support and fast loading capabilities
 - **Add to Home Screen**: Users can now install the app like a native mobile application
 - **Workout Split Enhancements**: Added comprehensive workout split guidance with specific schedules and exercise recommendations
-- **BM25 Integration**: Implemented BM25 retrieval for better short query handling
 - **Improved RAG Service**: Enhanced prompt construction and fallback responses for workout questions
 - **Knowledge Base Expansion**: Added detailed workout split information and training frequency guidance
 
