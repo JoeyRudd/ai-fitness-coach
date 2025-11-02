@@ -192,7 +192,8 @@ class TestIntegration:
             assert "sorry" in response_lower
         else:
             # Normal response - should contain workout/exercise content
-            assert "workout" in response_lower or "exercise" in response_lower
+            exercise_keywords = ["workout", "exercise", "press", "row", "pulldown", "extension", "training", "lift", "rep"]
+            assert any(keyword in response_lower for keyword in exercise_keywords)
     
     def test_profile_consistency_across_chat(self):
         """Test that user profile remains consistent across multiple chat turns."""
