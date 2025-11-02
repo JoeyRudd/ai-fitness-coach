@@ -953,8 +953,7 @@ class RAGService:
             elif context['fitness_level'] == 'beginner':
                 if 'gym' in context['access_equipment']:
                     context_sentence = " As a beginner with gym access, do 2-3 strength training days per week focusing on compound movements like leg press, chest press, and lat pulldown with proper form."
-                else:
-                    context_sentence = " As a beginner, do 2-3 strength training days per week using bodyweight exercises and resistance bands."
+                # Removed hardcoded bodyweight fallback to allow KB content to be used instead
             elif context['injuries_limitations']:
                 context_sentence = " Given your physical considerations, do low-impact exercises and focus on proper form. Consider consulting a physical therapist for personalized guidance."
             elif context['time_availability'] == 'very_busy':
@@ -999,12 +998,7 @@ class RAGService:
                 context_sentence = " For beginners, start with a full body split 3x per week (Mon/Wed/Fri) with rest days between. This hits all major muscle groups efficiently and allows proper recovery."
         
         # Fall back to a generic snippet from RAG if nothing else was formed
-        if not context_sentence and retrieved:
-            first = retrieved[0].strip().replace('\n', ' ')
-            m = re.split(r'[.!?]', first)
-            if m and m[0]:
-                snippet = m[0][:160].strip()
-                context_sentence = f" Quick note: {snippet}."
+        # Removed - was grabbing wrong chunks. Let other logic handle it instead.
         
         # Provide specific guidance based on the user's question
         if not context_sentence:

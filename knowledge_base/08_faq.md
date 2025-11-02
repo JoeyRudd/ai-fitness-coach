@@ -4,7 +4,7 @@
 TDEE is how many calories you burn daily. Use it to set calories for your goal: maintain, cut (deficit), or bulk (surplus).
 - Maintenance: eat about your TDEE
 - Cut (fat loss): 300–500 calories below TDEE
-- Bulk (muscle gain): 200–300 calories above TDEE
+- Bulk (muscle gain): 200 calories above TDEE
 - Re-check every 4–6 weeks and adjust based on progress
 Common mistakes: cutting too hard, changing calories too often, ignoring protein.
 
@@ -68,7 +68,7 @@ Common mistakes: adding volume too quickly, never adjusting sets.
 ## Cut vs bulk vs maintenance
 Pick one based on your goal; keep protein high and training consistent.
 - Cut: 300–500 below TDEE, same full‑body workout 2–3×/week
-- Bulk: 200–300 above TDEE, focus on progressive overload
+- Bulk: 100–200 above TDEE, focus on progressive overload
 - Maintenance: around TDEE, sharpen form and consistency
 Common mistakes: switching goals weekly, large deficits/surpluses, random programs.
 
@@ -93,4 +93,16 @@ For lifting, flat/stable shoes. For walking/cardio, comfortable supportive shoes
 - Avoid squishy running shoes for heavy machine presses
 Common mistakes: slippery soles for leg press, worn‑out shoes.
 
+## I'm just starting fitness. What should I do? How should I start as a beginner?
+If you're a beginner wondering how to start fitness, here's what you should do. If you're new to structured training, prioritize strength training with light cardio. Strength training preserves muscle mass, supports bone health, and cardio helps keep your heart healthy.
+- Start with 2–3 full‑body strength training days per week (Mon/Wed/Fri with rest days)
+- Track your progress
+- Focus on machine‑based exercises for safety and controlled movement: leg press, chest press, lat pulldown, shoulder press
+- Do 1–2 sets of 7–10 reps with proper form—controlled tempo is key
+- Allow at least 48 hours between sessions for recovery, especially as a beginner you're more likely to get muscle soreness
+- Cardio is optional but reccommended, light walking 2–3 days per week is fine, but strength training should be the priority
+- Never skip warm‑ups—3–5 reps at 50–60% working weight, then 1 rep at 90% before your working sets
+
+**For older beginners** (40s, 45, or older): Strength training becomes even more important for muscle preservation and bone health. Follow the same program but allow extra recovery time between sessions.
+Common mistakes: starting with cardio-first approach, skipping strength training, rushing recovery, ignoring form for heavier weights.
 
