@@ -363,7 +363,7 @@ The test suite includes comprehensive coverage of:
 - **API Endpoints** (11 tests) - Chat functionality, health checks, error handling
 - **Chat Flow** (4 tests) - End-to-end chat interactions and responses
 - **Error Handling** (21 tests) - Invalid requests, API errors, edge cases
-- **RAG System** (3 tests) - Hybrid retrieval, short queries, indexing
+- **RAG System** (2 tests) - Short queries, indexing
 - **Profile Logic** (4 tests) - User profile extraction and TDEE calculations
 - **Intent Detection** (6 tests) - Workout vs nutrition intent classification
 - **TDEE Calculations** (5 tests) - Caloric estimation accuracy

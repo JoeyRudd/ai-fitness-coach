@@ -40,14 +40,16 @@
         </div>
 
         <!-- Compact disclaimer banner (shown after first message) -->
-        <div v-else class="w-full bg-amber-50 dark:bg-[#1b1408] text-amber-800 dark:text-amber-300">
-            <div class="max-w-3xl mx-auto px-4 sm:px-6 py-2 text-xs sm:text-sm">
-                For education only. Not medical advice. Consult a healthcare professional for personal guidance.
+        <div v-if="!showHero && showDisclaimer" @click="showDisclaimer = false" class="w-full bg-red-50/80 dark:bg-red-950/30 border-b border-red-200/50 dark:border-red-900/40 cursor-pointer hover:bg-red-100/80 dark:hover:bg-red-950/40 transition-colors">
+            <div class="max-w-3xl mx-auto px-4 sm:px-6 py-3 sm:py-3.5">
+                <p class="text-xs sm:text-sm font-medium text-red-800 dark:text-red-300 leading-relaxed text-center">
+                    <span class="font-semibold">For education only.</span> Not medical advice. Consult a healthcare professional for personal guidance.
+                </p>
             </div>
         </div>
 
         <!-- Main Chat Interface - Full Height -->
-        <div class="flex-1 min-h-0 flex flex-col relative overflow-hidden">
+        <div class="flex-1 min-h-0 flex flex-col relative overflow-hidden bg-gray-50 dark:bg-[#0c151b]">
             <ChatInterface
                 input-label="Ask your fitness question:"
                 placeholder="e.g., Create a workout plan for beginners, help me plan my meals, or ask about exercises..."
@@ -131,6 +133,8 @@ const interactionHistory = ref<Interaction[]>([]);
 
 // Landing hero state
 const showHero = ref(true);
+// Disclaimer banner state
+const showDisclaimer = ref(true);
 
 // Helper function to add interaction
 const addInteraction = (type: string, message: string): void => {
@@ -154,6 +158,8 @@ const onMessageSent = (message: string): void => {
     addInteraction("Message Sent", message);
     // Hide hero after first message
     if (showHero.value) showHero.value = false;
+    // Show disclaimer when hero is hidden
+    if (!showHero.value && showDisclaimer.value) showDisclaimer.value = true;
 };
 
 const onResponseReceived = (response: string): void => {

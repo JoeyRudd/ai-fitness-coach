@@ -10,7 +10,6 @@ Current behavior:
 - load() scans directory for .md/.txt files and populates self._docs
 - build() creates chunks and builds TF-IDF index
 - retrieve() performs semantic search using TF-IDF and returns top k chunks
-- hybrid_retrieve() uses TF-IDF (maintains same interface for backwards compatibility)
 
 Features:
 - Automatic chunking with overlap (900 char chunks, 150 char overlap)
@@ -99,7 +98,6 @@ class RAGIndex:
         load(path): read .md/.txt recursively
         build(model_name): chunk + build TF-IDF index (lazy)
         retrieve(query, k): semantic search using TF-IDF returning list[dict]
-        hybrid_retrieve(query, k): same as retrieve() (maintains backwards compatibility)
     """
 
     def __init__(self) -> None:
@@ -307,15 +305,6 @@ class RAGIndex:
         except Exception as e:  # noqa: BLE001
             logger.warning("Retrieval failed: %s", e)
             return []
-
-    def hybrid_retrieve(self, query: str, k: int = 3) -> List[Dict[str, str]]:
-        """Retrieve using TF-IDF semantic search.
-        
-        Note: This method maintains the same interface as before but now uses
-        TF-IDF only. The name 'hybrid_retrieve' is kept for backwards compatibility.
-        """
-        # Simply use the regular retrieve method (TF-IDF)
-        return self.retrieve(query, k)
 
     def _keyword_fallback(self, query: str, k: int) -> List[Dict[str, str]]:
         q_terms = [t for t in re.findall(r"\w+", query.lower()) if len(t) > 2]

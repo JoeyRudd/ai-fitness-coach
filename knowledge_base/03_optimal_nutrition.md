@@ -28,17 +28,17 @@ Good nutrition is the foundation of any successful fitness journey. Here's what 
 
 ## Protein: Your Muscle-Building Friend
 
-- Eat 0.8-1g of protein per pound of body weight daily
+- Eat 0.7-1g of protein per pound of body weight daily
 - Good sources: chicken, fish, eggs, Greek yogurt, whey isolate, lean beef
 - Spread protein throughout the day for best results
-- Don't stress about perfect timing - consistency matters most
+- Don't stress about perfect timing, consistency matters most
 
 ## Pre-Workout Nutrition
 
 - Prior to a workout, prioritize carbohydrates for energy
-- Good options: banana, oatmeal, toast, or a small snack 30-60 minutes before
-- Stay hydrated - drink water throughout the day
-- If you're new to exercise, don't overthink this - just avoid exercising on a completely empty stomach
+- Good options: banana, cream of wheat/rice, rice krispy
+- Stay hydrated drink water throughout the day and make sure you get electrolytes
+- Aim for 50-100 grams of carbs 30-60 minutes pre training
 
 ## Simple Daily Guidelines
 

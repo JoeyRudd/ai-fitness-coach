@@ -7,13 +7,17 @@ const app = createApp(App)
 
 // Global error handler
 app.config.errorHandler = (err, _instance, info) => {
-  console.error('Vue Error:', err, info)
+  if (import.meta.env.DEV) {
+    console.error('Vue Error:', err, info)
+  }
   // Let the app continue to render even if there are errors
 }
 
 // Global warn handler
 app.config.warnHandler = (msg, _instance, trace) => {
-  console.warn('Vue Warning:', msg, trace)
+  if (import.meta.env.DEV) {
+    console.warn('Vue Warning:', msg, trace)
+  }
 }
 
 app.mount('#app')
@@ -23,17 +27,23 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     // Add timeout to prevent hanging
     const timeout = setTimeout(() => {
-      console.warn('Service Worker registration timed out')
+      if (import.meta.env.DEV) {
+        console.warn('Service Worker registration timed out')
+      }
     }, 5000)
 
     navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
         clearTimeout(timeout)
-        console.log('Service Worker registered:', registration)
+        if (import.meta.env.DEV) {
+          console.log('Service Worker registered:', registration)
+        }
       })
       .catch((error) => {
         clearTimeout(timeout)
-        console.log('Service Worker registration failed:', error)
+        if (import.meta.env.DEV) {
+          console.log('Service Worker registration failed:', error)
+        }
         // Don't let service worker errors break the app
       })
   })

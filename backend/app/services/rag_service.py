@@ -193,20 +193,18 @@ class RAGService:
                 weight_kg = profile.get('weight_kg')
                 if weight_kg:
                     weight_lb = round(weight_kg / 0.4536)
-                    min_protein = int(weight_lb * 0.8)
+                    min_protein = int(weight_lb * 0.7)
                     max_protein = int(weight_lb * 1.0)
                     resp = (
-                        f"A good target is 0.8–1 gram of protein per pound of body weight per day. "
-                        f"For your weight ({weight_lb} lbs), that's about {min_protein}–{max_protein} grams of protein daily. "
-                        f"Focus on simple, lean sources like chicken, fish, eggs, beans, or Greek yogurt."
+                        f"A good target is 0.7–1 gram of protein per pound of body weight per day. "
+                        f"For your weight ({weight_lb} lbs), that's about {min_protein}–{max_protein} grams of protein daily."
                     )
                     return HistoryChatResponse(response=resp, profile=profile, tdee=None, missing=[], asked_this_intent=[], intent='protein')
                 else:
                     # Provide general recommendation even without weight
                     resp = (
-                        f"A good target is 0.8–1 gram of protein per pound of body weight per day. "
+                        f"A good target is 0.7–1 gram of protein per pound of body weight per day. "
                         f"For most people, that's roughly 80–150 grams daily, depending on your weight. "
-                        f"Focus on simple, lean sources like chicken, fish, eggs, beans, or Greek yogurt. "
                         f"Share your weight if you'd like a more specific target."
                     )
                     return HistoryChatResponse(response=resp, profile=profile, tdee=None, missing=[], asked_this_intent=[], intent='protein')
@@ -355,7 +353,7 @@ class RAGService:
                         rag_query = f"{last_user} {context_keywords}"
                         logger.info("Augmented RAG query with context: '%s' -> '%s'", last_user, rag_query)
                 # Retrieve relevant chunks using TF-IDF semantic search
-                retrieved = self._rag_index.hybrid_retrieve(rag_query, k=dyn_k)  # type: ignore
+                retrieved = self._rag_index.retrieve(rag_query, k=dyn_k)  # type: ignore
                 logger.info("RAG retrieval successful: %d results for query '%s'", len(retrieved), rag_query)
                 for i, r in enumerate(retrieved):
                     logger.info("Retrieved %d: [%s] %s...", i, r['source'], r['text'][:100])

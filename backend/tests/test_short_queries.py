@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
-"""Test script for short query retrieval differences."""
+"""Test script for short query retrieval."""
 
 import os
 from app.services.rag_index import RAGIndex
 
 def test_short_queries():
-    """Test short queries to see BM25 vs TF-IDF differences."""
+    """Test short queries using TF-IDF retrieval."""
     # Initialize RAG index
     rag = RAGIndex()
     
@@ -16,7 +16,7 @@ def test_short_queries():
     # Build index
     rag.build()
     
-    # Test very short queries where BM25 should excel
+    # Test very short queries
     short_queries = [
         "protein",
         "cardio", 
@@ -25,19 +25,10 @@ def test_short_queries():
     ]
     
     for query in short_queries:
-        # Test hybrid method
-        hybrid_results = rag.hybrid_retrieve(query, k=3)
-        assert len(hybrid_results) > 0, f"Hybrid RRF should return results for short query: {query}"
-        assert len(hybrid_results) <= 3, f"Hybrid should respect k=3 limit for query: {query}"
-        
-        # Test regular method for comparison
-        regular_results = rag.retrieve(query, k=3)
-        assert len(regular_results) > 0, f"Regular retrieval should return results for short query: {query}"
-        assert len(regular_results) <= 3, f"Regular should respect k=3 limit for query: {query}"
-        
-        # Both methods should return results for short queries
-        assert len(hybrid_results) > 0, f"Hybrid should handle short query: {query}"
-        assert len(regular_results) > 0, f"Regular should handle short query: {query}"
+        # Test retrieval method
+        results = rag.retrieve(query, k=3)
+        assert len(results) > 0, f"Retrieval should return results for short query: {query}"
+        assert len(results) <= 3, f"Retrieval should respect k=3 limit for query: {query}"
 
 def test_workout_split_queries():
     """Test workout split queries to ensure they retrieve relevant information or use fallback."""
@@ -55,7 +46,7 @@ def test_workout_split_queries():
     ]
     
     for query in workout_split_queries:
-        results = rag.hybrid_retrieve(query, k=5)
+        results = rag.retrieve(query, k=5)
         assert len(results) > 0, f"Should return results for workout split query: {query}"
         
         # Check that we're getting some relevant content

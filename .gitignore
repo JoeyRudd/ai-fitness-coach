@@ -58,6 +58,8 @@ logs/
 .env.test.local
 .env.production.local
 .env
+.envrc
+**/.envrc
 
 # Python packaging artifacts
 *.egg-info/

@@ -3,7 +3,7 @@
 ## TL;DR
 Master form first. Use the listed beginner machine exercises, work mostly in the **7–10 rep** range, and progress gradually.
 
-Search terms: beginner exercises, 7-10 reps, machine-based, form, progressive overload, workout split, full body, upper lower, push pull legs
+Search terms: beginner exercises, 7-10 reps, machine-based, form, progressive overload, workout split, full body, upper lower, push pull legs, fitness creators, fitness influencers, who to follow
 
 Strength training is the foundation of building muscle and improving your body composition. For beginners, the key is choosing the right exercises and mastering proper form before worrying about heavy weights.
 
@@ -24,7 +24,7 @@ Strength training is the foundation of building muscle and improving your body c
 
 **Start with video research:**
 - Search online for proper exercise execution videos
-- Check out reputable influencers like TNF, KeenanRMalloy, Trell, JPG Coaching and Trained by JP
+- Check out reputable creators and influencers like TNF, KeenanRMalloy, Trell, JPG Coaching, Trained by JP, Jeff Nippard
 - Watch multiple angles to understand the movement pattern
 
 **Then practice and record:**
@@ -34,7 +34,11 @@ Strength training is the foundation of building muscle and improving your body c
 
 ## Great Fitness People to Follow and Learn From
 
-**Who are some good fitness people I can check out?** Here are the top fitness influencers and coaches I recommend for beginners:
+**Who are some good fitness people I can check out?** Here are the top fitness creators, influencers, and coaches I recommend for beginners:
+
+**Science-Backed Fitness Creators:**
+- **Jeff Nippard** - Breaks down fitness concepts in digestible, science-backed ways
+- **Jeremy Ethier** - Offers practical, no-fluff guidance perfect for beginners
 
 **Strength Training Coaches:**
 - **TNF** - Excellent form tutorials and beginner-friendly content
@@ -43,7 +47,7 @@ Strength training is the foundation of building muscle and improving your body c
 - **JPG Coaching** - Provides clear, actionable fitness advice
 - **Trained by JP** - Excellent for understanding movement patterns
 
-**Why these influencers are worth following:**
+**Why these creators and influencers are worth following:**
 - They prioritize proper form and safety
 - Their content is beginner-friendly and easy to understand
 - They focus on evidence-based training methods
@@ -58,7 +62,7 @@ Strength training is the foundation of building muscle and improving your body c
 
 ## Fitness Resources and Learning Materials
 
-**Where can I learn more about fitness?** Beyond following the influencers above, here are additional resources:
+**Where can I learn more about fitness?** Beyond following the creators and influencers above, here are additional resources:
 
 **Online Learning Platforms:**
 - YouTube channels of the recommended coaches for free content

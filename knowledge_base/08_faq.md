@@ -9,7 +9,7 @@ TDEE is how many calories you burn daily. Use it to set calories for your goal: 
 Common mistakes: cutting too hard, changing calories too often, ignoring protein.
 
 ## How much protein should I eat?
-Aim for 0.8–1.0 grams of protein per pound of body weight per day (about 1.8–2.2 g/kg). Spread it across meals.
+Aim for 0.7–1.0 grams of protein per pound of body weight per day (about 1.5–2.2 g/kg). Spread it across meals.
 - Good sources: chicken, fish, eggs, Greek yogurt, whey isolate, lean beef
 - Include protein in 3–4 meals/snacks daily
 - Higher protein helps muscle, recovery, and hunger control

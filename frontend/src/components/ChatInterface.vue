@@ -1,17 +1,16 @@
 <template>
   <div class="relative h-full w-full flex flex-col">
     <!-- Chat History - Takes up all available space, scrollable -->
-    <div class="flex-1 overflow-y-auto px-3 sm:px-6 py-2 sm:py-4 pb-32 sm:pb-36 min-h-0">
+    <div class="flex-1 overflow-y-auto px-4 sm:px-6 py-2 sm:py-4 pb-32 sm:pb-36 min-h-0">
       <!-- Welcome Message -->
       <div v-if="history.length === 1" class="text-center py-4 sm:py-6">
-       
-        <div class="text-base sm:text-lg text-gray-600 dark:text-gray-400 w-full max-w-4xl mx-auto px-2">
+        <div class="text-base sm:text-lg text-gray-600 dark:text-gray-400 w-full max-w-3xl mx-auto px-4 sm:px-6">
           {{ history[0].content }}
         </div>
       </div>
 
       <!-- Chat Messages -->
-      <div v-else class="space-y-4 sm:space-y-6">
+      <div v-else class="space-y-4 sm:space-y-6 max-w-3xl mx-auto px-4 sm:px-6">
         <div v-for="(turn, idx) in history.slice(1)" :key="idx" class="flex w-full">
           <!-- User message -->
           <div
@@ -87,8 +86,8 @@
       </div>
 
       <!-- TDEE Panel -->
-      <div v-if="tdeeData" class="mt-4 sm:mt-6 w-full px-2">
-        <div class="p-3 sm:p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 text-xs sm:text-sm text-blue-900 dark:text-blue-200 max-w-4xl mx-auto shadow-sm">
+      <div v-if="tdeeData" class="mt-4 sm:mt-6 w-full max-w-3xl mx-auto px-4 sm:px-6">
+        <div class="p-3 sm:p-4 rounded-xl bg-gradient-to-r from-blue-50 to-blue-100 dark:from-blue-950/40 dark:to-blue-900/20 text-xs sm:text-sm text-blue-900 dark:text-blue-200 shadow-sm">
           <div class="font-semibold mb-2">Caloric Estimates</div>
           <div class="flex flex-col sm:flex-row sm:flex-wrap gap-2 sm:gap-4">
             <div>BMR: <span class="font-medium">{{ tdeeData.bmr.toFixed(0) }}</span></div>
@@ -102,11 +101,11 @@
     </div>
 
     <!-- Input Section - Absolutely positioned at bottom -->
-    <div class="absolute bottom-0 left-0 right-0 bg-gray-100 dark:bg-[#080e12]">
-      <div class="w-full px-3 sm:px-6 py-3 sm:py-4">
-        <div class="relative max-w-4xl mx-auto">
+    <div class="absolute bottom-0 left-0 right-0 bg-gray-100 dark:bg-[#080e12] border-t border-gray-200/50 dark:border-neutral-800/50">
+      <div class="w-full px-4 sm:px-6 py-3 sm:py-4">
+        <div class="relative max-w-3xl mx-auto">
           <!-- Inline error toast -->
-          <div v-if="errorMessage" class="absolute -top-10 right-0 left-0 mx-auto w-full sm:w-auto sm:max-w-md">
+          <div v-if="errorMessage" class="absolute -top-10 right-0 left-0 mx-auto w-full sm:w-auto sm:max-w-md px-4 sm:px-0">
             <div class="flex items-center justify-between gap-3 px-3 py-2 rounded-lg bg-red-100 text-red-800 border border-red-200 dark:bg-red-900/30 dark:text-red-200 dark:border-red-800">
               <span class="text-xs sm:text-sm">{{ errorMessage }}</span>
               <div class="flex items-center gap-2">
@@ -147,8 +146,8 @@
             </span>
           </button>
         </div>
-        <div class="max-w-4xl mx-auto">
-          <div v-if="history.length === 1" class="mt-1 pl-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">Press Enter to send • Shift+Enter for a new line</div>
+        <div class="max-w-3xl mx-auto px-4 sm:px-6">
+          <div v-if="history.length === 1" class="mt-1 text-[11px] sm:text-xs text-gray-500 dark:text-gray-400">Press Enter to send • Shift+Enter for a new line</div>
         </div>
       </div>
     </div>
@@ -336,15 +335,17 @@ async function sendMessage() {
     emit('responseReceived', data.response);
     await scrollToBottom(); // Scroll immediately after receiving response
   } catch (e: any) {
-    if (e?.response) {
-      console.error('[ChatInterface] Chat request failed', {
-        status: e.response.status,
-        statusText: e.response.statusText,
-        data: e.response.data,
-        endpoint
-      });
-    } else {
-      console.error('[ChatInterface] Chat request error', e, { endpoint });
+    if (import.meta.env.DEV) {
+      if (e?.response) {
+        console.error('[ChatInterface] Chat request failed', {
+          status: e.response.status,
+          statusText: e.response.statusText,
+          data: e.response.data,
+          endpoint
+        });
+      } else {
+        console.error('[ChatInterface] Chat request error', e, { endpoint });
+      }
     }
     
     // Update user message status to 'error'
